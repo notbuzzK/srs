@@ -1,26 +1,109 @@
+<script setup lang="ts">
+const router = useRouter()
+
+function handleRoute(route: string){
+  const page = '/faculty/'+route
+  router.push(page)
+}
+
+function logout() {
+  console.log("Logging out")
+  toast.add({ title: 'Hello world!' })
+  router.push('/')
+}
+
+const toast = useToast()
+
+</script>
 <template>
-    <div class="flex">
-      <div class="w-[6%] h-screen bg-gray-200">
-        <h1>sidebar</h1>
+  <div class="flex max-h-screen">
+      <div class="w-[6%] h-screen bg-[#017C35]">
+        <div class="flex flex-col h-full justify-between py-6 items-center">
+
+          <h1 class="text-[#017C35]">top</h1>
+
+          <div class="flex flex-col gap-8 text-center items-center">
+            <UIcon
+              name="i-material-symbols-home-outline-rounded"
+              @click="handleRoute('dashboard')" class="w-10 h-10 text-center text-[#EAF33B]"
+            />
+            <UIcon 
+              name="i-tabler-calendar-week-filled" 
+              @click="handleRoute('schedule')" 
+              class="w-10 h-10 text-center text-white" 
+            />
+            <UIcon 
+              name="i-tabler-file-export" 
+              @click="handleRoute('summary')" 
+              class="w-10 h-10 text-center text-white" 
+            />
+          </div>
+          
+          <UIcon 
+            name="i-bx-log-out" 
+            @click="logout()" 
+            class="w-10 h-10 text-center  text-white" 
+          />
+          
+          
+        </div>
       </div>
       <div class="w-full gap-4">
   
-        <div class="h-[6%] bg-slate-200">
-          <h1>header</h1>
+        <div class="h-[7%] bg-[#FFFFFF]">
+
+          <div class="flex justify-between h-full items-center p-2 px-6">
+            <h1 class="font-sans text-[#017C35] font-bold">Faculty Schedule Recommendation System</h1>
+
+            <div class="flex justify-between gap-8">
+
+              <!--Notifcation-->
+              <Notifications />
+
+              <!--Profile-->
+              <Profile />
+
+            </div>
+          </div>
+
         </div>
   
-        <div  class="h-[94%] w-full bg-orange-700 grid grid-cols-8 grid-rows-5">
+        <div  class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-8 grid-rows-5">
   
-          <div class="col-span-5 row-span-1 bg-white m-4 mb-2 mr-2">
-            tabs
+          <div class="col-span-6 row-span-1 bg-white m-4 mb-2 mr-2 rounded-[12px] p-4">
+
+            <div class="flex w-full h-full items-center ">
+
+              <div class="flex w-[50%] align-center items-center  justify-center gap-5 border-r-2 border-[#16B559]" @click="handleRoute('schedule')">
+                <UIcon 
+                  name="i-tabler-calendar-week-filled" 
+                  class="w-20 h-20 text-center text-[#017C35]" 
+                />
+                <h1 class="text-[#017C35] text-md font-medium">
+                  ADD <br>SCHEDULE</h1>
+                
+              </div>
+
+              <div class="flex w-[50%] align-center items-center  justify-center gap-5" @click="handleRoute('summary')">
+                <UIcon 
+                  name="i-tabler-file-export" 
+                  class="w-20 h-20 text-center text-[#017C35]" 
+                />
+                <h1 class="text-[#017C35] text-md font-medium">
+                  GENERATE <br>SUMMARY</h1>
+              </div>
+
+            </div>
+
           </div>
   
-          <div class="col-span-3 row-span-5 bg-purple-300 m-4 ml-2">
-            Availability Time
+          <div class="col-span-2 row-span-5 bg-white m-4 ml-2 rounded-[12px] p-4">
+            <h1 class="text-[#017C35] font-bold text-xl">AVAILABILITY TIME</h1>
+            <AvailabilityTime />
           </div>
   
-          <div class="col-span-5 row-span-4 bg-blue-300 m-4 mt-2 mr-2">
-            Summary History
+          <div class="col-span-6 row-span-4 bg-white m-4 mt-2 mr-2 rounded-[12px] p-4">
+            <h1 class="text-[#017C35] font-bold text-xl">SUMMARY HISTORY</h1>
           </div>
   
         </div>

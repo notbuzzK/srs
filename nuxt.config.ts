@@ -12,12 +12,13 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
+    supabaseKey: '',
     public: {
-      SUPABASE_URL: process.env.SUPABASE_URL,
-      SUPABASE_KEY: process.env.SUPABASE_KEY,
+      supabaseUrl: '',
     },
   },
   plugins: [
     '~/plugins/supabase.js',
   ],
+  
 });
