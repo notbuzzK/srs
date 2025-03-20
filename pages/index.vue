@@ -4,6 +4,9 @@ import type { FormSubmitEvent } from '#ui/types'
 const supabase = useNuxtApp().$supabase;
 
 const router = useRouter()
+const toast = useToast()
+let { userId } = getUserId()
+let { userRole } = handleUserRole()
 
 const schema = z.object({
   email: z.string(),
@@ -17,22 +20,46 @@ const state = reactive({
   password: "",
 })
 
+async function getUserRole(){
+  let { data: users, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('user_auth_id', userId.value)
+    
+    if (error) {
+      console.error('Error fetching user role:', error.message)
+    } else {
+      userRole.value = users[0].role
+    }
+}
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   let { data, error: signInError } = await supabase.auth.signInWithPassword({
-  email: event.data.email,
-  password: event.data.password
-  })
+    email: event.data.email,
+    password: event.data.password
+  });
 
   if (signInError) {
     console.error('Error logging in:', signInError);
-  } else {
-    console.log('login successful', data);
-    console.log("Routing to dashboard")
-    router.push('/faculty/dashboard')
+    return;
   }
+  toast.add({ title: 'Login Successful!' });
+
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('No user found.');
+    return;
+  }
+
+  userId.value = user.id; // Store the user ID globally
+
+  // Fetch user role
+  await getUserRole();
+
+  console.log('Redirecting to dashboard...');
+  router.push('/faculty/dashboard');
 }
-
-
 
 </script>
 

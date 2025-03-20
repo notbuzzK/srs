@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+const supabase = useNuxtApp().$supabase;
 
 const isOpen = ref(false)
+
+const { data: { user } } = await supabase.auth.getUser()
+
+const user_id = ref('')
 
 // Define time slots (half-hour intervals)
 const timeSlots = [
@@ -40,10 +45,10 @@ const days = [
   'Thursday',
   'Friday',
   'Saturday',
-  'Sunday'
 ]
 
 const newTimeSlot = ref({
+  availability_id: '',
   day: '',
   start: '',
   end: ''
@@ -52,24 +57,108 @@ const newTimeSlot = ref({
 // Array to store all added time slots
 const timeSlotsAdded = ref([])
 
-// Add new time slot to the array and reset the form
-function onAddTimeSlot() {
-  console.log('added times:', newTimeSlot.value)
+onMounted(async () => {
+  await getUserID()
+  // Fetch existing time slots
+  const { data: timeSlots, error } = await supabase
+    .from('facultyAvailability')
+    .select('availability_id, day, start_time, end_time')
+    .eq('faculty_id', user_id.value)
 
-  // Basic validation: ensure a day, start, and end are selected
-  if (newTimeSlot.value.day && newTimeSlot.value.start && newTimeSlot.value.end) {
-    timeSlotsAdded.value.push({ ...newTimeSlot.value })
-    newTimeSlot.value = { day: '', start: '', end: '' }
-    isOpen.value = false
+  if (error) {
+    console.error('Error fetching time slots:', error.message)
   } else {
-    
+    timeSlotsAdded.value = timeSlots.map((slot) => ({
+      day: slot.day,
+      start: slot.start_time,
+      end: slot.end_time,
+    }));
+  }
+})
+
+  async function getUserID(){
+    let { data: users, error } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('email', user?.email)
+      
+      if (error) {
+        console.error('Error fetching user id:', error.message)
+      } else {
+        user_id.value = users[0].user_id
+      }
+  }
+
+// Add new time slot to the array and reset the form
+async function onAddTimeSlot() {
+  console.log('Adding time slot:', newTimeSlot.value);
+
+  if (newTimeSlot.value.day && newTimeSlot.value.start && newTimeSlot.value.end) {
+    await getUserID();
+
+    const { data, error } = await supabase
+      .from('facultyAvailability')
+      .insert([{
+        faculty_id: user_id.value,
+        day: newTimeSlot.value.day,
+        start_time: newTimeSlot.value.start,
+        end_time: newTimeSlot.value.end
+      }])
+      .select(); // Ensure we get the inserted data back
+
+    if (error) {
+      console.error('Error adding time slot:', error);
+    } else {
+      console.log('Inserted data:', data);
+
+      // Check if data was returned
+      if (data.length > 0 && data[0].availability_id) {
+        timeSlotsAdded.value.push({
+          availability_id: data[0].availability_id, // Ensure correct ID is stored
+          day: newTimeSlot.value.day,
+          start: newTimeSlot.value.start,
+          end: newTimeSlot.value.end,
+        });
+
+        console.log('Updated timeSlotsAdded:', timeSlotsAdded.value);
+      } else {
+        console.error('Error: availability_id missing from response');
+      }
+    }
+
+    isOpen.value = false;
+  } else {
+    console.warn('Invalid time slot input');
   }
 }
 
+
 // Remove a time slot from the array by index
-function removeTimeSlot(index: number) {
-  timeSlotsAdded.value.splice(index, 1)
+function removeTimeSlot(index) {
+  const timeSlot = timeSlotsAdded.value[index]; // Get the object
+  console.log('Attempting to delete:', timeSlot);
+
+  if (!timeSlot || !timeSlot.availability_id) {
+    console.error('Error: No availability_id found for deletion');
+    return;
+  }
+
+  const timeSlotId = timeSlot.availability_id; // Get the correct ID
+  console.log('Deleting time slot with id:', timeSlotId);
+
+  supabase
+    .from('facultyAvailability')
+    .delete()
+    .eq('availability_id', timeSlotId) // Ensure this matches your database field
+    .then((response) => {
+      console.log('Delete response:', response);
+      timeSlotsAdded.value.splice(index, 1); // Remove from local state
+    })
+    .catch((error) => {
+      console.error('Delete error:', error);
+    });
 }
+
 </script>
 
 <template>

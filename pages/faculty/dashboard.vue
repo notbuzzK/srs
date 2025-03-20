@@ -1,55 +1,33 @@
 <script setup lang="ts">
+const supabase = useNuxtApp().$supabase;
 const router = useRouter()
+
+/* 
+import  getUserId   from '~/composables/getUserId';
+const { userId } = getUserId()
+*/
+
+
+
+import handleUserRole from '~/composables/handleUserRole';
+const { userRole } = handleUserRole()
 
 function handleRoute(route: string){
   const page = '/faculty/'+route
   router.push(page)
 }
-
-function logout() {
-  console.log("Logging out")
-  toast.add({ title: 'Hello world!' })
-  router.push('/')
-}
-
 const toast = useToast()
 
 </script>
 <template>
   <div class="flex max-h-screen">
-      <div class="w-[6%] h-screen bg-[#017C35]">
-        <div class="flex flex-col h-full justify-between py-6 items-center">
 
-          <h1 class="text-[#017C35]">top</h1>
+    <!--Sidebar-->
+    <Sidebar :userRole="'Faculty'" />
 
-          <div class="flex flex-col gap-8 text-center items-center">
-            <UIcon
-              name="i-material-symbols-home-outline-rounded"
-              @click="handleRoute('dashboard')" class="w-10 h-10 text-center text-[#EAF33B]"
-            />
-            <UIcon 
-              name="i-tabler-calendar-week-filled" 
-              @click="handleRoute('schedule')" 
-              class="w-10 h-10 text-center text-white" 
-            />
-            <UIcon 
-              name="i-tabler-file-export" 
-              @click="handleRoute('summary')" 
-              class="w-10 h-10 text-center text-white" 
-            />
-          </div>
-          
-          <UIcon 
-            name="i-bx-log-out" 
-            @click="logout()" 
-            class="w-10 h-10 text-center  text-white" 
-          />
-          
-          
-        </div>
-      </div>
       <div class="w-full gap-4">
   
+        <!--Header-->
         <div class="h-[7%] bg-[#FFFFFF]">
 
           <div class="flex justify-between h-full items-center p-2 px-6">

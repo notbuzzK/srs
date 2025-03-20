@@ -26,6 +26,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@iconify-json/material-symbols": "^1.2.16",
     "@nuxt/types": "^2.18.1",
     "@nuxtjs/supabase": "^1.4.6"
   }
