@@ -8,10 +8,6 @@ import { useSchedule } from '~/composables/useSchedule'
 const router = useRouter()
 
 
-function logout() {
-  console.log("Logging out")
-  router.push('/')
-}
 
 const {
   showModal,
@@ -60,20 +56,52 @@ const {
           <h1 class="text-[#017C35] font-bold text-xl">ADD SCHEDULE</h1>
           <TimeTable class="overflow-auto" />
         </div>
-
+        
         
         <!-- Quick Actions -->
         <div class="col-span-2 row-span-5 bg-white m-4 ml-2 rounded-[12px] p-4">
-          <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
-          <UButton variant="solid" @click="showModal = true">Add Event</UButton>
-          <UButton variant="ghost" @click="clearEvents">Clear Schedule</UButton>
-          <UButton variant="solid" @click="onSubmit">Upload Schedule</UButton>
-          <div class="mt-4">
-            <p>Total Hours: {{ totalHours }} hrs</p>
-            <p>Teaching Hours: {{ teachingHours }} hrs</p>
-            <p>AW Hours: {{ awHours }} hrs</p>
-            <p>ARP Hours: {{ arpHours }} hrs</p>
-            <p>CH Hours: {{ chHours }} hrs</p>
+          <div class="grid grid-rows-6 h-full">
+
+            <!--
+              <h2 class="text-xl font-bold mb-4 row-span-1">Quick Actions</h2>
+            -->
+            
+            <!-- Summary -->
+            <div class="row-span-2">
+              <h1 class="text-[#017C35] font-bold text-xl">Summary</h1>
+              <div class="flex justify-between">
+                <div>
+                  <p class="font-bold">Total Hours: </p>
+                  <p>Teaching Hours: </p>
+                  <p>AW Hours: </p>
+                  <p>ARP Hours: </p>
+                  <p>CH Hours: </p>
+                </div>
+                
+                <div>
+                  <p class="font-bold">{{ totalHours }} hrs</p>
+                  <p>{{ teachingHours }} hrs</p>
+                  <p>{{ awHours }} hrs</p>
+                  <p>{{ arpHours }} hrs</p>
+                  <p>{{ chHours }} hrs</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col gap-4 row-span-2">
+              <h1 class="text-[#017C35] font-bold text-xl">Actions</h1>
+              <div class="flex justify-between">
+                <UButton variant="solid" @click="showModal = true">Add Event</UButton>
+                <UButton variant="ghost" @click="clearEvents">Clear Schedule</UButton>
+              </div>
+              <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule</UButton>
+            </div>
+
+            <div class="row-span-2">
+              <!-- Space for additional content -->
+            </div>
+          
           </div>
         </div>
       </div>

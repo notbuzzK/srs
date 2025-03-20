@@ -35,13 +35,14 @@
                     {{ eventAtSlot(day, slotIndex).type }} - {{ eventAtSlot(day, slotIndex).course }}<br />
                     Room: {{ eventAtSlot(day, slotIndex).room }}<br />
                   <small>
-                    {{ timeSlots[eventAtSlot(day, slotIndex).startIndex] }}
-                    to
-                    {{ timeSlots[eventAtSlot(day, slotIndex).endIndex] }}
+                    {{ otherTimeSlots[eventAtSlot(day, slotIndex).startIndex] }} 
+                    <br> to <br> 
+                    {{ otherTimeSlots[eventAtSlot(day, slotIndex).endIndex - 1] }}
                   </small>
+
                   <!-- Delete Button -->
                   <UButton
-                    class="absolute top-0 right-0 p-1"
+                    class="absolute top-0 right-0 p-1 bg-[#DD3A3A] text-white"
                     @click="deleteEvent(eventAtSlot(day, slotIndex).id)"
                   >
                     X
@@ -144,6 +145,7 @@
 <script setup lang="ts">
 import { useSchedule } from '~/composables/useSchedule'
 const {
+  otherTimeSlots,
   timeSlots,
   timeSlotsIndices,
   days,

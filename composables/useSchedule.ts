@@ -28,6 +28,36 @@ const timeSlots = [
   '06:00 - 06:30',
   '06:30 - 07:00',
 ]
+
+const otherTimeSlots = [ 
+  '07:00 AM',
+  '07:30 AM',
+  '08:00 AM',
+  '08:30 AM',
+  '09:00 AM',
+  '09:30 AM',
+  '10:00 AM',
+  '10:30 AM',
+  '11:00 AM',
+  '11:30 AM',
+  '12:00 PM',
+  '12:30 PM',
+  '01:00 PM',
+  '01:30 PM',
+  '02:00 PM',
+  '02:30 PM',
+  '03:00 PM',
+  '03:30 PM',
+  '04:00 PM',
+  '04:30 PM',
+  '05:00 PM',
+  '05:30 PM',
+  '06:00 PM',
+  '06:30 PM',
+  '07:00 PM'
+]
+
+
 const timeSlotsIndices = Array.from({ length: timeSlots.length }, (_, i) => i)
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const eventTypes = ['Teaching', 'AW', 'ARP', 'CH']
@@ -50,28 +80,36 @@ function parseSlotIndex(slotLabel: string) {
 }
 
 function addEvent() {
+  // Basic validation
   if (!newEvent.value.name.trim()) {
-    alert('Please enter an event name.')
-    return
+    alert('Please enter an event name.');
+    return;
   }
-  const startIndex = parseSlotIndex(newEvent.value.startTime)
-  const endIndex = parseSlotIndex(newEvent.value.endTime)
-  if (endIndex <= startIndex) {
-    alert('End time must be later than start time.')
-    return
+  
+  // Calculate indices from the chosen times
+  const startIndex = parseSlotIndex(newEvent.value.startTime);
+  const rawEndIndex = parseSlotIndex(newEvent.value.endTime);
+  
+  if (rawEndIndex <= startIndex) {
+    alert('End time must be later than start time.');
+    return;
   }
-  // Check for conflicts: if any event on the same day overlaps in time.
+  
+  // Check for conflicts: any event on the same day that overlaps the new event
   const conflict = events.value.find(evt => {
-    return (
-      evt.day === newEvent.value.day &&
-      startIndex < evt.endIndex &&
-      endIndex > evt.startIndex
-    )
-  })
+    return evt.day === newEvent.value.day &&
+           startIndex < evt.endIndex &&
+           rawEndIndex > evt.startIndex;
+  });
   if (conflict) {
-    alert('This event conflicts with an existing event.')
-    return
+    alert('This event conflicts with an existing event.');
+    return;
   }
+  
+  // Create the event object.
+  // Note: We use rawEndIndex as the exclusive bound.
+  // The merged cell will cover rows from startIndex to rawEndIndex - 1.
+  // We store the original chosen end time in 'displayEnd'.
   const eventToAdd = {
     id: Date.now(),
     name: newEvent.value.name,
@@ -79,11 +117,15 @@ function addEvent() {
     course: newEvent.value.course,
     room: newEvent.value.room,
     day: newEvent.value.day,
-    startIndex,
-    endIndex
-  }
-  events.value.push(eventToAdd)
-  showModal.value = false
+    startIndex: startIndex,
+    endIndex: rawEndIndex,
+    displayEnd: newEvent.value.endTime, // For display purposes
+  };
+  
+  // Add the new event and close the modal
+  events.value.push(eventToAdd);
+  showModal.value = false;
+  
   // Reset the form
   newEvent.value = {
     name: '',
@@ -93,8 +135,9 @@ function addEvent() {
     day: 'Monday',
     startTime: timeSlots[0],
     endTime: timeSlots[1]
-  }
+  };
 }
+
 
 function deleteEvent(id: number) {
   events.value = events.value.filter(evt => evt.id !== id)
@@ -159,6 +202,7 @@ function cancelModal() {
 
 export function useSchedule() {
   return {
+    otherTimeSlots,
     timeSlots,
     timeSlotsIndices,
     days,
