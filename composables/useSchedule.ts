@@ -1,6 +1,10 @@
 // composables/useSchedule.ts
 import { ref, computed } from 'vue'
 
+import  getUserId from '~/composables/getUserId'
+
+const { userId } = getUserId()
+
 // Shared state is defined as a singleton
 const timeSlots = [
   '07:00 - 07:30',
@@ -80,26 +84,28 @@ function parseSlotIndex(slotLabel: string) {
 }
 
 function addEvent() {
-  // Basic validation
-  if (!newEvent.value.name.trim()) {
+  // Validate that a non-empty name has been entered.
+  if (!newEvent.value.name || !newEvent.value.name.trim()) {
     alert('Please enter an event name.');
     return;
   }
   
-  // Calculate indices from the chosen times
-  const startIndex = parseSlotIndex(newEvent.value.startTime);
-  const rawEndIndex = parseSlotIndex(newEvent.value.endTime);
+  // Use otherTimeSlots to determine the index of the selected times.
+  const startIndex = otherTimeSlots.indexOf(newEvent.value.startTime);
+  const rawEndIndex = otherTimeSlots.indexOf(newEvent.value.endTime);
   
   if (rawEndIndex <= startIndex) {
     alert('End time must be later than start time.');
     return;
   }
   
-  // Check for conflicts: any event on the same day that overlaps the new event
+  // Check for conflicts with an existing event on the same day.
   const conflict = events.value.find(evt => {
-    return evt.day === newEvent.value.day &&
-           startIndex < evt.endIndex &&
-           rawEndIndex > evt.startIndex;
+    return (
+      evt.day === newEvent.value.day &&
+      startIndex < evt.endIndex &&
+      rawEndIndex > evt.startIndex
+    );
   });
   if (conflict) {
     alert('This event conflicts with an existing event.');
@@ -107,9 +113,8 @@ function addEvent() {
   }
   
   // Create the event object.
-  // Note: We use rawEndIndex as the exclusive bound.
-  // The merged cell will cover rows from startIndex to rawEndIndex - 1.
-  // We store the original chosen end time in 'displayEnd'.
+  // We treat rawEndIndex as exclusive so that the merged cell spans from startIndex up to rawEndIndex - 1.
+  // The original selected end time is stored in displayEnd.
   const eventToAdd = {
     id: Date.now(),
     name: newEvent.value.name,
@@ -119,23 +124,31 @@ function addEvent() {
     day: newEvent.value.day,
     startIndex: startIndex,
     endIndex: rawEndIndex,
-    displayEnd: newEvent.value.endTime, // For display purposes
+    displayEnd: newEvent.value.endTime,
   };
   
-  // Add the new event and close the modal
   events.value.push(eventToAdd);
   showModal.value = false;
   
-  // Reset the form
+  // Reset the form for the next event.
   newEvent.value = {
     name: '',
     type: '',
     course: '',
     room: 'TBA',
     day: 'Monday',
-    startTime: timeSlots[0],
-    endTime: timeSlots[1]
+    startTime: otherTimeSlots[0],
+    endTime: otherTimeSlots[1],
   };
+}
+
+function onSubmit() {
+  console.log('Uploading schedule:', events.value)
+  // Later: Insert events into your Supabase "facultySchedules" table.
+}
+
+function getEvent(day: string, slotIndex: number) {
+  return events.value.find(evt => evt.day === day && evt.startIndex === slotIndex);
 }
 
 
@@ -145,11 +158,6 @@ function deleteEvent(id: number) {
 
 function clearEvents() {
   events.value = []
-}
-
-function onSubmit() {
-  console.log('Uploading schedule:', events.value)
-  // Later: Insert events into your Supabase "facultySchedules" table.
 }
 
 // Helper functions for rendering the timetable
@@ -202,6 +210,7 @@ function cancelModal() {
 
 export function useSchedule() {
   return {
+    getEvent,
     otherTimeSlots,
     timeSlots,
     timeSlotsIndices,

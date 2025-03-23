@@ -20,19 +20,6 @@ const state = reactive({
   password: "",
 })
 
-async function getUserRole(){
-  let { data: users, error } = await supabase
-    .from('users')
-    .select('role')
-    .eq('user_auth_id', userId.value)
-    
-    if (error) {
-      console.error('Error fetching user role:', error.message)
-    } else {
-      userRole.value = users[0].role
-    }
-}
-
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   let { data, error: signInError } = await supabase.auth.signInWithPassword({
     email: event.data.email,
@@ -51,16 +38,42 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     console.error('No user found.');
     return;
   }
-
+  
   userId.value = user.id; // Store the user ID globally
-
+  
   // Fetch user role
   await getUserRole();
-
+  
   console.log('Redirecting to dashboard...');
   router.push('/faculty/dashboard');
 }
 
+async function handleRoute(){
+  await getUserRole();
+
+  switch(userRole.value){
+    case 'Faculty': router.push('/faculty/dashboard'); break;
+    case 'Scheduler': router.push('/scheduler/dashboard'); break;
+    case 'CEEA': router.push('/CEEA/dashboard'); break;
+    case 'College Admin': router.push('/collegeAdmin/dashboard'); break;
+    case 'System Admin': router.push('/systemAdmin/dashboard'); break;
+  }
+}
+
+async function getUserRole(){
+  let { data: users, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('user_auth_id', userId.value)
+    
+    if (error) {
+      console.error('Error fetching user role:', error.message)
+    } else if (users && users.length > 0) {
+      userRole.value = users[0].role
+    } else {
+      console.error('No user found with the given user_auth_id')
+    }
+}
 </script>
 
 <template>

@@ -20,5 +20,4 @@ export default defineNuxtConfig({
   plugins: [
     '~/plugins/supabase.js',
   ],
-  
 });

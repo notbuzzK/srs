@@ -34,6 +34,7 @@ const designationOptions = [
 ];
 
 const collegeOptions = [
+  { value: 0, name: 'None' },
   { value: 1, name: 'College of Allied Sciences' },
   { value: 2, name: 'CCDSL'  },
   { value: 3, name: 'CHSS'  },
@@ -53,6 +54,7 @@ const collegeOptions = [
 ];
 
 const departmentOptions = [
+  { value: 0, name: 'None' },
   { value: 1, name: 'Bioch' },
   { value: 2, name: 'DNSM'  },
   { value: 3, name: 'LHS'  },
@@ -189,12 +191,13 @@ async function onSubmit() {
               />
             </UFormGroup>
 
-            <UFormGroup label="College" name="college">
+            <UFormGroup label="College" name="college" required>
               <USelect
                 v-model="rolesForm.college"
                 :options="collegeOptions"
                 valueAttribute="value"
                 optionAttribute="name"
+                required
                 label="name"
               />
             </UFormGroup>
@@ -209,12 +212,13 @@ async function onSubmit() {
               />
             </UFormGroup>
 
-            <UFormGroup label="Secondary Department" name="secondaryDept">
+            <UFormGroup label="Secondary Department" name="secondaryDept" required>
               <USelect
                 v-model="rolesForm.secondaryDept"
                 :options="departmentOptions"
                 valueAttribute="value"
                 optionAttribute="name"
+                required
               />
             </UFormGroup>
 

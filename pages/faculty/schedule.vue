@@ -4,10 +4,11 @@ import { useRouter } from 'vue-router'
 import Faculty from '~/components/Sidebar.vue'
 import TimeTable from '~/components/TimeTable.vue'
 import { useSchedule } from '~/composables/useSchedule'
+import getAcadSem from '~/composables/getAcadSem'
 
 const router = useRouter()
 
-
+let { acadYear, acadSem } = getAcadSem()
 
 const {
   showModal,
@@ -69,6 +70,18 @@ const {
             <!-- Summary -->
             <div class="row-span-2">
               <h1 class="text-[#017C35] font-bold text-xl">Summary</h1>
+              
+              <div class="flex justify-between mb-2">
+                <div>
+                  <p class="font-bold">Academic Year: </p>
+                  <p class="font-bold">Semester: </p>
+                </div>
+                <div class="text-right">
+                  <p>2021-2022</p>
+                  <p>1st Semester</p>
+                </div>
+              </div>
+
               <div class="flex justify-between">
                 <div>
                   <p class="font-bold">Total Hours: </p>
@@ -93,7 +106,7 @@ const {
               <h1 class="text-[#017C35] font-bold text-xl">Actions</h1>
               <div class="flex justify-between">
                 <UButton variant="solid" @click="showModal = true">Add Event</UButton>
-                <UButton variant="ghost" @click="clearEvents">Clear Schedule</UButton>
+                <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
               </div>
               <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule</UButton>
             </div>
