@@ -30,7 +30,16 @@ watch(
 // Handle icon click: navigate and update the selected icon immediately
 function handleRoute(routeName: string) {
   // Update the route; the watcher will update selectedIcon as well.
-  router.push(`/${props.userRole}/${routeName}`)
+  
+  // handle route for system admin and college admin
+  if (props.userRole === 'System Admin') {
+    router.push(`/systemAdmin/${routeName}`)
+  } else if (props.userRole === 'College Admin') {
+    router.push(`/collegeAdmin/${routeName}`)
+  } else {
+    router.push(`/${props.userRole}/${routeName}`)
+  }
+  
   // Optionally update selectedIcon immediately (helps with instant UI feedback)
   selectedIcon.value = routeName
 }

@@ -5,10 +5,13 @@ import Faculty from '~/components/Sidebar.vue'
 import TimeTable from '~/components/TimeTable.vue'
 import { useSchedule } from '~/composables/useSchedule'
 import getAcadSem from '~/composables/getAcadSem'
+import OverrideAcadSem from '~/components/overrideAcadSem.vue'
+
+const isOpenOverrideModal = ref(false)
 
 const router = useRouter()
 
-let { acadYear, acadSem } = getAcadSem()
+const { acadYear, acadSem } = getAcadSem()
 
 const {
   showModal,
@@ -77,8 +80,8 @@ const {
                   <p class="font-bold">Semester: </p>
                 </div>
                 <div class="text-right">
-                  <p>2021-2022</p>
-                  <p>1st Semester</p>
+                  <p>{{ acadYear }}</p>
+                  <p>{{ acadSem }}</p>
                 </div>
               </div>
 
@@ -103,11 +106,14 @@ const {
             
             <!-- Action Buttons -->
             <div class="flex flex-col gap-4 row-span-2">
+
               <h1 class="text-[#017C35] font-bold text-xl">Actions</h1>
+
               <div class="flex justify-between">
                 <UButton variant="solid" @click="showModal = true">Add Event</UButton>
                 <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
               </div>
+              <OverrideAcadSem v-model="isOpenOverrideModal"/>
               <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule</UButton>
             </div>
 

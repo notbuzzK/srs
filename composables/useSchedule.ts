@@ -1,9 +1,14 @@
 // composables/useSchedule.ts
 import { ref, computed } from 'vue'
 
-import  getUserId from '~/composables/getUserId'
+import { getUserInfo } from '~/composables/getUserInfo'
+import getAcadSem from '~/composables/getAcadSem'
+import { useNuxtApp } from '#app'
 
-const { userId } = getUserId()
+const { userId } = getUserInfo()
+const { acadYear, acadSem } = getAcadSem()
+
+
 
 // Shared state is defined as a singleton
 const timeSlots = [
@@ -89,6 +94,12 @@ function addEvent() {
     alert('Please enter an event name.');
     return;
   }
+
+  // Validate that a type has been selected.
+  if (!newEvent.value.type) {
+    alert('Please select an event type.');
+    return;
+  }
   
   // Use otherTimeSlots to determine the index of the selected times.
   const startIndex = otherTimeSlots.indexOf(newEvent.value.startTime);
@@ -143,8 +154,24 @@ function addEvent() {
 }
 
 function onSubmit() {
+  const { $supabase } = useNuxtApp()
   console.log('Uploading schedule:', events.value)
-  // Later: Insert events into your Supabase "facultySchedules" table.
+
+   // Create a payload for each event (adjust the columns as needed)
+   const payload = events.value.map(evt => ({
+    faculty_id: evt.faculty_id || 'no faculty id', 
+    department_id: evt.department_id || 'no department id',
+    course_id: evt.course_id || 'no course id',
+    day: evt.day,
+    start_time: timeSlots[evt.startIndex],
+    end_time: evt.displayEnd, // using displayEnd, or adjust if needed
+    room: evt.room,
+    school_year: acadYear || 'no school year',
+    term: acadSem || 'no term',
+    total_hours: (evt.endIndex - evt.startIndex) * 0.5,
+  }))
+
+  console.log('Payload:', payload)
 }
 
 function getEvent(day: string, slotIndex: number) {
@@ -234,5 +261,7 @@ export function useSchedule() {
     getRowSpan,
     parseSlotIndex,
     cancelModal,
+    acadYear,
+    acadSem,
   }
 }

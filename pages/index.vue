@@ -5,8 +5,7 @@ const supabase = useNuxtApp().$supabase;
 
 const router = useRouter()
 const toast = useToast()
-let { userId } = getUserId()
-let { userRole } = handleUserRole()
+let { userId, userRole, user_auth_id } = getUserInfo()
 
 const schema = z.object({
   email: z.string(),
@@ -28,6 +27,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
   if (signInError) {
     console.error('Error logging in:', signInError);
+    toast.add({ title: 'Login Failed!', color: 'red' });
     return;
   }
   toast.add({ title: 'Login Successful!' });
@@ -39,13 +39,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     return;
   }
   
-  userId.value = user.id; // Store the user ID globally
+  userId.value = user.id;
   
-  // Fetch user role
-  await getUserRole();
-  
-  console.log('Redirecting to dashboard...');
-  router.push('/faculty/dashboard');
+  await handleRoute();
 }
 
 async function handleRoute(){
@@ -56,7 +52,7 @@ async function handleRoute(){
     case 'Scheduler': router.push('/scheduler/dashboard'); break;
     case 'CEEA': router.push('/CEEA/dashboard'); break;
     case 'College Admin': router.push('/collegeAdmin/dashboard'); break;
-    case 'System Admin': router.push('/systemAdmin/dashboard'); break;
+    case 'System Admin': router.push('/systemAdmin/manageMembers'); break;
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-const supabase = useNuxtApp().$supabase;
+const supabase = useNuxtApp().$supabase
+const toast = useToast()
 
 const isOpen = ref(false)
 
@@ -121,6 +122,7 @@ async function onAddTimeSlot() {
         });
 
         console.log('Updated timeSlotsAdded:', timeSlotsAdded.value);
+        toast.add({ title: 'Time slot added successfully!' });
       } else {
         console.error('Error: availability_id missing from response');
       }
@@ -134,7 +136,7 @@ async function onAddTimeSlot() {
 
 
 // Remove a time slot from the array by index
-function removeTimeSlot(index) {
+function removeTimeSlot(index: number) {
   const timeSlot = timeSlotsAdded.value[index]; // Get the object
   console.log('Attempting to delete:', timeSlot);
 
@@ -149,13 +151,15 @@ function removeTimeSlot(index) {
   supabase
     .from('facultyAvailability')
     .delete()
-    .eq('availability_id', timeSlotId) // Ensure this matches your database field
+    .eq('availability_id', timeSlotId)
     .then((response) => {
       console.log('Delete response:', response);
       timeSlotsAdded.value.splice(index, 1); // Remove from local state
+      toast.add({ title: 'Time slot deleted successfully!' });
     })
     .catch((error) => {
       console.error('Delete error:', error);
+      toast.add({ title: 'Error deleting time slot!', color: 'red' });
     });
 }
 

@@ -5,12 +5,12 @@ const router = useRouter()
 /* 
 import  getUserId   from '~/composables/getUserId';
 const { userId } = getUserId()
-*/
 
 
 
 import handleUserRole from '~/composables/handleUserRole';
 const { userRole } = handleUserRole()
+*/
 
 function handleRoute(route: string){
   const page = '/faculty/'+route
@@ -50,6 +50,7 @@ const toast = useToast()
   
           <div class="col-span-6 row-span-1 bg-white m-4 mb-2 mr-2 rounded-[12px] p-4">
 
+            <!--Quick Actions-->
             <div class="flex w-full h-full items-center ">
 
               <div class="flex w-[50%] align-center items-center  justify-center gap-5 border-r-2 border-[#16B559]" @click="handleRoute('schedule')">

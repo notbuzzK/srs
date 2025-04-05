@@ -1,8 +1,9 @@
 <template>
-    <div class="flex">
-      <div class="w-[6%] h-screen bg-gray-200">
-        <h1>sidebar</h1>
-      </div>
+  <div class="flex">
+
+    <!--Sidebar-->
+    <Sidebar :userRole="'Scheduler'" />
+
       <div class="w-full gap-4">
   
         <div class="h-[6%] bg-slate-200">
