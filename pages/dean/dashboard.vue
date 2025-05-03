@@ -16,7 +16,7 @@ function handleRoute(route: string){
   <div class="flex max-h-screen">
 
     <!--Sidebar-->
-    <Sidebar :userRole="'Scheduler'" />
+    <Sidebar :userRole="'Dean'" />
 
     <div class="w-full gap-4">
 
@@ -88,10 +88,7 @@ function handleRoute(route: string){
             <h1 class="text-[#017C35] font-bold text-xl">SUMMARY HISTORY</h1>
           </div>
           
-        <div class="col-span-3 row-span-2 bg-white rounded-[12px] p-4 m-4 mt-2 ml-2 mb-2">
-          <h1 class="text-[#017C35] font-bold text-xl">Term Info</h1>
-          <TermInfo />
-        </div>
+
 
         <div class="col-span-3 row-span-3 bg-white rounded-[12px] p-4 m-4 mt-2 ml-2">
           <h1 class="text-[#017C35] font-bold text-xl">AVAILABILITY TIME</h1>

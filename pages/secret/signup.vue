@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const supabase = useNuxtApp().$supabase;
 const toast = useToast()
+const router = useRouter()
 
 import { useAccountCreationValues } from '~/composables/useAccountCreationValues';
 
@@ -24,6 +25,8 @@ const items = [{
   label: 'Roles & Department',
   description: ''
 }]
+
+
 
 const accountForm = reactive({
   name: '', 
@@ -108,7 +111,6 @@ const resetValues = () => {
   accountForm.email = ''
   accountForm.password = ''
   accountForm.item = ''
-  accountForm.rank = ''
   accountForm.userRole = ''
 
   rolesForm.primaryCollege = ''
@@ -121,12 +123,15 @@ const resetValues = () => {
 
 const isOpen = ref(false);
 
-</script>
+onMounted(() => {
+  resetValues()
+})
 
+</script>
 <template>
-  <div class="flex items-center justify-center">
-    <UButton @click="[isOpen = true, resetValues()]" variant="ghost" class="text-sm  font-medium  cursor-pointer text-[#017C35]" >Add Members</UButton>
-    <UModal v-model="isOpen" :ui="{ width: 'md:max-w-xl'}">
+  <div class="flex justify-center items-center w-full h-screen bg-[#E8F8EF] shadow-lg">
+    <div class="w-[40%] ">
+
       <UTabs :items="items" class="w-full">
         <template #item="{ item }">
           <UCard @submit.prevent="() => onSubmit()">
@@ -258,6 +263,8 @@ const isOpen = ref(false);
                 />
               </UFormGroup>
 
+              
+
               <UFormGroup label="Designation" name="designation" required>
                 <USelect
                   v-model="rolesForm.designation"
@@ -270,7 +277,7 @@ const isOpen = ref(false);
             </div>
 
             <template #footer>
-              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[resetValues(), isOpen = false]">
+              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[router.back(), isOpen = false]">
                 Cancel
               </UButton>
               <UButton type="submit" color="primary" v-if="item.key === 'roles'">
@@ -280,6 +287,6 @@ const isOpen = ref(false);
           </UCard>
         </template>
       </UTabs>
-    </UModal>
+    </div>
   </div>
 </template>

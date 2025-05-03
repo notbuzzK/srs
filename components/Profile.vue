@@ -2,9 +2,9 @@
 const supabase = useNuxtApp().$supabase;
 const router = useRouter()
 const toast = useToast()
-import { getUserInfo } from '~/composables/getUserInfo';
 
-const { userId } = getUserInfo()
+const { data: { user } } = await supabase.auth.getUser()
+const userId = user?.id
 
 const name = ref('')
 
@@ -19,43 +19,52 @@ async function logout (){
   }
 }
 
-const getName = async () => {
-  let { data: users, error } = await supabase
+onMounted(async () => {
+  const storedName = localStorage.getItem('username')
+  if (!storedName) {
+    await getName()
+  } else {
+    name.value = storedName
+  }
+})
+
+async function getName() {
+
+  let { data, error } = await supabase
     .from('users')
     .select('*')
-    .eq('user_auth_id', userId.value)
+    .eq('user_auth_id', userId)
+
+  console.log('users: ', data)
+  name.value = data?.[0].name
+  localStorage.setItem('username', name.value)
 
   if (error) {
-    console.error('Error fetching users:', error.message)
-  } else {
-    console.log('users: ', users)
-    // set the form values
-    name.value = users[0].name
-  }
-}
+    console.log('Error fetching name: ', error)
+  } 
 
-onMounted(async () => {
-  getName()
-})
+}
 
 </script>
 <template>
   <UPopover :popper="{ arrow: true, placement: 'bottom-start' }">
     <UIcon 
-        name="i-ic-round-account-circle" 
+        name="i-ic-outline-account-circle" 
         @click="" 
-        class="w-8 h-8 text-center  text-[#017C35]" 
+        class="w-7 h-8 text-[#017C35]" 
     />
 
     <template #panel>
         <div class="p-4">
-        <h1 class="border-b">{{name}}</h1>
-        <editUser :user_auth_id="userId" />
+        <!-- <h1 class="border-b p-1 pl-3">{{name}}</h1> -->
+        <div class="border-b">
+          <editUser :user_auth_id="userId" :usedIn="'profile'"/>
+        </div>
         
         <UButton
           variant="ghost"
           @click="logout"
-          class="w-full font-medium cursor-pointer text-[#017C35] border-b"
+          class="w-full font-medium cursor-pointer text-[#dd3a3a] hover:bg-[#aa2c2c21] border-b"
         >
           Logout
         </UButton>

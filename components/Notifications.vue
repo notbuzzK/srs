@@ -1,9 +1,10 @@
 <template> 
   <UPopover :popper="{ arrow: true, placement: 'bottom-start' }">
     <UIcon 
-      name="i-charm-inbox" 
+      name="i-octicon-inbox-16" 
       @click="" 
-      class="w-8 h-8 text-center  text-[#017C35]" 
+      class="w-6 h-8 text-center text-[#017C35]"
+      fallback-icon="i-material-symbols-help"
     />
 
     <template #panel>

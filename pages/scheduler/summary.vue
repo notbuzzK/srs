@@ -1,26 +1,50 @@
+<script setup lang="ts">
+const name = useNameStore()
+const designation = useDesignationStore()
+  
+
+</script>
 <template>
   <div class="flex">
 
-    <!--Sidebar-->
-    <Sidebar :userRole="'Scheduler'" />
+   <!--Sidebar-->
+   <Sidebar :userRole="'Scheduler'" />
 
-      <div class="w-full gap-4">
-  
-        <div class="h-[6%] bg-slate-200">
-          <h1>header</h1>
-        </div>
-  
-        <div  class="h-[94%] w-full bg-orange-700 grid grid-cols-8 grid-rows-5">
-  
-          <div class="col-span-6 row-span-5 bg-white m-4 mr-2">
-            Summary
+  <div class="w-full gap-4">
+
+    <!--Header-->
+    <div class="h-[7%] bg-[#FFFFFF]">
+
+      <div class="flex justify-between h-full items-center p-2 px-6">
+        <h1 class="font-sans text-[#017C35] font-bold">Faculty Schedule Recommendation System</h1>
+
+        <div class="flex justify-between gap-8 items-center">
+            <p class="font-bold text-[#017C35]">{{ name.name }}, {{ designation.designation }}</p>
+            <div class="flex justify-between gap-8">
+              <!--Notifcation-->
+              <Notifications />
+
+              <!--Profile-->
+              <Profile />
+
+            </div>
           </div>
-  
-          <div class="col-span-2 row-span-5 bg-purple-300 m-4 ml-2">
-            quick actions
-          </div>
-  
+      </div>
+
+    </div>
+
+      <div  class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-8 grid-rows-5">
+
+        <div class="col-span-6 row-span-5 bg-white m-4 mt-4 mr-2 rounded-[12px] p-4 overflow-y-auto max-h-full">
+          <h1 class="text-[#017C35] font-bold text-xl">GENERATE SUMMARY</h1>
+          <h1>will use Handlebars + Puppeteer</h1>
         </div>
+
+        <div class="col-span-2 row-span-5 bg-white m-4 ml-2 rounded-[12px] p-4">
+          quick actions
+        </div>
+
       </div>
     </div>
-  </template>
+  </div>
+</template>

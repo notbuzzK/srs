@@ -47,7 +47,7 @@ const columns = [{
   class: 'w-[5%]'
 }]
 
-const people = ref([])
+const people = ref<any>([])
 
 const getPeople = async () => {
   let { data: users, error } = await supabase
@@ -59,8 +59,8 @@ const getPeople = async () => {
     people.value = []
   } else {
     // Convert college and department IDs to Names
-    people.value = users.map((user) => ({
-      ...user,
+    people.value = users?.map((user) => ({
+      ...user,  
       college: getCollegeName(user.college_id),
       department: getDepartment(user.pr_department_id, user.sd_department_id)
     }))
@@ -91,7 +91,7 @@ const pageCount = 7
 
 const filteredRows = computed(() => {
   if (!q.value) return people.value 
-  return people.value.filter((person) =>
+  return people.value.filter((person: string) =>
     Object.values(person).some((value) =>
       String(value).toLowerCase().includes(q.value.toLowerCase())
     )
@@ -133,8 +133,6 @@ async function deleteUser(uuid: any) {
 
 const isOpen = ref(false)
 
-// TODO: fix edit user modal
-
 </script>
 <template>
   <div class="flex flex-col justify-between h-full">
@@ -150,7 +148,7 @@ const isOpen = ref(false)
       <UTable :rows="paginatedRows" :columns="columns" class="">
 
         <template #actions-data="{ row }">
-          <editUser :user_auth_id="row.user_auth_id"/>
+          <editUser :user_auth_id="row.user_auth_id" :usedIn="'table'" />
         </template>
 
       </UTable>

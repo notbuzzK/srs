@@ -1,9 +1,8 @@
 <script setup lang="ts">
 const supabase = useNuxtApp().$supabase;
-
-
 const userId = ref<any>('')
-
+const name = useNameStore()
+const designation = useDesignationStore()
 const isOpenOverrideModal = ref(false)
 
 const {
@@ -46,6 +45,7 @@ const getCurrentTerm = async () => {
 }
 
 onMounted(async ()=> {
+  
   const { data: { user } } = await supabase.auth.getUser()
   userId.value = user?.id
   getCurrectAcadYear()
@@ -57,7 +57,7 @@ onMounted(async ()=> {
   <div class="flex max-h-screen">
 
     <!--Sidebar-->
-    <Sidebar :userRole="'Faculty'" />
+    <Sidebar :userRole="'Dean'" />
 
     <div class="w-full gap-4">
 
@@ -67,17 +67,18 @@ onMounted(async ()=> {
         <div class="flex justify-between h-full items-center p-2 px-6">
           <h1 class="font-sans text-[#017C35] font-bold">Faculty Schedule Recommendation System</h1>
 
-          <div class="flex justify-between gap-8">
+          <div class="flex justify-between gap-8 items-center">
+            <!-- <p class="font-bold text-[#017C35]">{{ name.name }}, {{ designation.designation }}</p> -->
+            <div class="flex justify-between gap-8">
+              <!--Notifcation-->
+              <Notifications />
 
-            <!--Notifcation-->
-            <Notifications />
+              <!--Profile-->
+              <Profile />
 
-            <!--Profile-->
-            <Profile />
-
+            </div>
           </div>
         </div>
-
       </div>
 
       <!-- Main Content -->
@@ -89,7 +90,6 @@ onMounted(async ()=> {
           <TimeTable :user_auth_id="userId" class="overflow-auto" />
         </div>
 
-
         <!-- Quick Actions -->
         <div class="col-span-2 row-span-5 bg-white m-4 ml-2 rounded-[12px] p-4">
           <div class="grid grid-rows-6 h-full">
@@ -99,7 +99,7 @@ onMounted(async ()=> {
             -->
             
             <!-- Summary -->
-            <div class="row-span-2">
+            <div class="row-span-3">
               <h1 class="text-[#017C35] font-bold text-xl">Summary</h1>
               
               <div class="flex justify-between mb-2">
@@ -133,7 +133,7 @@ onMounted(async ()=> {
             </div>
             
             <!-- Action Buttons -->
-            <div class="flex flex-col gap-4 row-span-2">
+            <div class="flex flex-col gap-4 row-span-3">
 
               <h1 class="text-[#017C35] font-bold text-xl">Actions</h1>
 
@@ -141,13 +141,13 @@ onMounted(async ()=> {
                 <UButton variant="solid" @click="showModal = true">Add Event</UButton>
                 <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
               </div>
-              <OverrideAcadSem v-model="isOpenOverrideModal"/>
+              <!-- <OverrideAcadSem v-model="isOpenOverrideModal"/> -->
               <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule</UButton>
             </div>
 
-            <div class="row-span-2">
-              <!-- Space for additional content -->
-            </div>
+            <!-- <div class="row-span-2">
+              
+            </div> -->
           
           </div>
         </div>

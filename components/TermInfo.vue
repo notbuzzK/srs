@@ -1,8 +1,10 @@
 <script setup lang="ts">
-const acadInfo = ref({
-  academicYear: undefined,
-  term: undefined,
-})
+const supabase = useNuxtApp().$supabase;
+const toast = useToast()
+
+// get the current user's auth-ID
+const { data: { user } } = await supabase.auth.getUser()
+const userAuthId = user?.id!
 
 const semesters = [
   { label: 'First Semester', value: 'First'},
@@ -11,13 +13,111 @@ const semesters = [
   { label: 'Midyear', value: 'Midyear'},
 ]
 
-const onSubmit = () => {
-  if (acadInfo.value.academicYear && acadInfo.value.term) {
-    // Assuming you have a function to handle the submission
-    console.log('Academic Year:', acadInfo.value.academicYear)
-    console.log('Term:', acadInfo.value.term)
+// fetch the full userRow so we know their pr_/sd_/acadServices_ids
+const userRow = ref<any>(null)
+async function loadUserRow() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('pr_department_id, sd_department_id, pr_college_id, sd_college_id, acadServices_id')
+    .eq('user_auth_id', userAuthId)
+    .single()
+  if (error) console.error(error)
+  else userRow.value = data
+}
+await loadUserRow()
+
+// derive the unit (type + id) from the 5 possible columns
+const { unit } = useUserUnit(userRow)
+console.log('unit in TermInfo.vue:', unit.value)
+
+// reactive acadInfo
+const acadInfo = ref({ academicYear: '', term: '' })
+
+// helper: get all dept-IDs under a unit (for college/service)
+async function getChildDeptIds(): Promise<number[]> {
+  if (!unit.value) return []
+  if (unit.value.type === 'department') {
+    return [unit.value.id]
+  }
+  // if college or service, load its departments
+  const fkCol = unit.value.type === 'college' ? 'college_id' : 'acadServices_id'
+  const { data, error } = await supabase
+    .from('departments')
+    .select('department_id')
+    .eq(fkCol, unit.value.id)
+  if (error) {
+    console.error('Error loading child departments', error)
+    return []
+  }
+  return data!.map(d => d.department_id)
+}
+
+// load existing year/term
+async function loadCurrent() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('acadYear, acadSem')
+    .eq('user_auth_id', userAuthId)
+    .single()
+  if (!error && data) {
+    acadInfo.value.academicYear = data.acadYear
+    acadInfo.value.term = data.acadSem
+  }
+}
+onMounted(loadCurrent)
+
+// on submit: update users in all relevant fk slots
+const onSubmit = async () => {
+  // validation
+  if (!acadInfo.value.academicYear || !acadInfo.value.term) {
+    toast.add({ title: 'Please fill in all fields', color: 'red' })
+    return
+  }
+  acadInfo.value.academicYear = acadInfo.value.academicYear.replace(/\s/g, '')
+
+  // get the list of dept-IDs under this unit
+  const deptIds = await getChildDeptIds()
+
+  // build update query
+  let query = supabase
+    .from('users')
+    .update({
+      acadYear: acadInfo.value.academicYear,
+      acadSem: acadInfo.value.term
+    })
+
+  if (unit.value?.type === 'department') {
+    // only primary dept
+    query = query.eq('pr_department_id', unit.value.id)
+  }
+  else if (unit.value?.type === 'college') {
+    if (deptIds.length) {
+      // only primary dept among child depts
+      query = query.in('pr_department_id', deptIds)
+    } else {
+      query = query.eq('pr_college_id', unit.value.id)
+    }
+  }
+  else if (unit.value?.type === 'service') {
+    if (deptIds.length) {
+      query = query.in('pr_department_id', deptIds)
+    } else {
+      query = query.eq('acadServices_id', unit.value.id)
+    }
   } else {
-    console.error('Please fill in all fields')
+    toast.add({ title: 'No organizational unit found', color: 'red' })
+    return
+  }
+
+  // execute update
+  const { data, error } = await query.select()
+  if (error) {
+    console.error(error)
+    toast.add({ title: 'Error updating users', color: 'red' })
+  } else {
+    toast.add({ title: 'Users updated successfully', color: 'green' })
+    console.log('Updated users:', data)
+    await loadCurrent()
   }
 }
 

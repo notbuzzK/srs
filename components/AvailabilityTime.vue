@@ -56,7 +56,7 @@ const newTimeSlot = ref({
 })
 
 // Array to store all added time slots
-const timeSlotsAdded = ref([])
+const timeSlotsAdded = ref<any[]>([])
 
 onMounted(async () => {
   await getUserID()
@@ -77,7 +77,7 @@ onMounted(async () => {
   }
 })
 
-  async function getUserID(){
+  const getUserID = async () => {
     let { data: users, error } = await supabase
       .from('users')
       .select('user_id')
@@ -86,12 +86,12 @@ onMounted(async () => {
       if (error) {
         console.error('Error fetching user id:', error.message)
       } else {
-        user_id.value = users[0].user_id
+        user_id.value = users?.[0].user_id
       }
   }
 
 // Add new time slot to the array and reset the form
-async function onAddTimeSlot() {
+const onAddTimeSlot = async () => {
   console.log('Adding time slot:', newTimeSlot.value);
 
   if (newTimeSlot.value.day && newTimeSlot.value.start && newTimeSlot.value.end) {
@@ -136,7 +136,7 @@ async function onAddTimeSlot() {
 
 
 // Remove a time slot from the array by index
-function removeTimeSlot(index: number) {
+const removeTimeSlot = async (index: number) => {
   const timeSlot = timeSlotsAdded.value[index]; // Get the object
   console.log('Attempting to delete:', timeSlot);
 
@@ -148,19 +148,20 @@ function removeTimeSlot(index: number) {
   const timeSlotId = timeSlot.availability_id; // Get the correct ID
   console.log('Deleting time slot with id:', timeSlotId);
 
-  supabase
+  const { data, error } = await supabase
     .from('facultyAvailability')
     .delete()
     .eq('availability_id', timeSlotId)
-    .then((response) => {
-      console.log('Delete response:', response);
-      timeSlotsAdded.value.splice(index, 1); // Remove from local state
-      toast.add({ title: 'Time slot deleted successfully!' });
-    })
-    .catch((error) => {
+    .select();
+
+    if (error) {
       console.error('Delete error:', error);
       toast.add({ title: 'Error deleting time slot!', color: 'red' });
-    });
+    } else {
+      console.log('Delete response:', data);
+      timeSlotsAdded.value.splice(index, 1); // Remove from local state
+      toast.add({ title: 'Time slot deleted successfully!' });
+    }
 }
 
 </script>

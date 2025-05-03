@@ -2,15 +2,6 @@
 const supabase = useNuxtApp().$supabase;
 const router = useRouter()
 
-/* 
-import  getUserId   from '~/composables/getUserId';
-const { userId } = getUserId()
-
-
-
-import handleUserRole from '~/composables/handleUserRole';
-const { userRole } = handleUserRole()
-*/
 
 function handleRoute(route: string){
   const page = '/faculty/'+route

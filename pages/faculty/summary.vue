@@ -1,17 +1,6 @@
 <script setup lang="ts">
 
-const router = useRouter()
-
-function handleRoute(route: string){
-  const page = '/faculty/'+route
-  router.push(page)
-}
-
-function logout() {
-  console.log("Logging out")
   
-  router.push('/')
-}
 
 </script>
 <template>

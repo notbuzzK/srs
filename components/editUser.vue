@@ -6,13 +6,22 @@ import { useAccountCreationValues } from '~/composables/useAccountCreationValues
 const { 
   status,
   userRoles,
-  collegeOptions,
+  collegeOptions, 
   departmentOptions,
   designationOptions,
-  getCollegeName,
-  getDepartmentName
+  acadServicesOptions,
+  facultyItems,
+  ranks,
+  range
 } = useAccountCreationValues()
-const props = defineProps<{ user_auth_id: string }>()
+
+const props = defineProps<{ 
+  user_auth_id: string | undefined,
+  usedIn: string,
+}>()
+
+const { data: { user } } = await supabase.auth.getUser()
+
 
 const items = [{
   key: 'account',
@@ -25,18 +34,26 @@ const items = [{
 }]
 
 
-const accountForm = reactive({name: '', email: '', password: '' , status: ''})
-const rolesForm = reactive({ 
+const accountForm = reactive({
+  name: '', 
+  email: '', 
+  password: '',
+  item: '',
   userRole: '',
-  college: '', 
+  rank: '',
+  rankValue: '',
+  status: ''
+})
+const rolesForm = reactive({ 
+  primaryCollege: '',
+  secondaryCollege: '', 
   primaryDept: '', 
-  secondaryDept: '', 
-  designation: '' 
+  secondaryDept: '',
+  acadServices: '', 
+  designation: '',
 })
 
-
-
-async function getUser() {
+const getUser = async () => {
   let { data: users, error } = await supabase
   .from('users')
   .select('*')
@@ -46,66 +63,83 @@ async function getUser() {
       console.error('Error fetching users:', error.message)
     } else {
       // set the form values
-      accountForm.name = users[0].name
-      accountForm.email = users[0].email
-      accountForm.status = users[0].status
+      accountForm.name = users?.[0].name
+      accountForm.email = users?.[0].email
+      accountForm.password = users?.[0].password
+      accountForm.rank = users?.[0].rank
+      accountForm.rankValue = users?.[0].rank_value
+      accountForm.item = users?.[0].item
+      accountForm.status = users?.[0].status
+      accountForm.userRole = users?.[0].role
       
-      rolesForm.userRole = users[0].role
-      rolesForm.college = users[0].college_id
-      rolesForm.primaryDept = users[0].pr_department_id
-      rolesForm.secondaryDept = users[0].sd_department_id
-      rolesForm.designation = users[0].designation
+      rolesForm.primaryCollege = users?.[0].pr_college_id
+      rolesForm.secondaryCollege = users?.[0].sd_college_id
+      rolesForm.primaryDept = users?.[0].pr_department_id
+      rolesForm.secondaryDept = users?.[0].sd_department_id
+      rolesForm.acadServices = users?.[0].acadServices_id
+      rolesForm.designation = users?.[0].designation
       
     }
 }
 
-async function onSubmit() {
+// TODO: make component able to update user email and password via edge functions
+
+const onSubmit = async () => {
   console.log('Form values: ', accountForm, rolesForm);
+
+  /*
   
-  // Check how many rows exist with the given user_auth_id
-  const { count, error: countError } = await supabase
-    .from('users')
-    .select('user_auth_id', { count: 'exact' })
-    .eq('user_auth_id', props.user_auth_id);
-
-  if (countError) {
-    console.error('Error counting rows:', countError.message);
-    return;
+  // check if user's email and password changed
+  if (accountForm.email !== user?.email) {
+    const { error } = await supabase.auth.updateUser({
+      email: accountForm.email,
+      password: accountForm.password
+    })
+    if (error) {
+      console.error('Error updating user:', error.message)
+      toast.add({ title: 'Error updating user', color: 'red' });
+    } else {
+      console.log('User updated successfully:', data);
+    }
   }
+  */
 
-  console.log('Number of rows with user_auth_id:', count);
-
-  if (count !== 1) {
-    console.error('Expected exactly one row to update, but found:', count);
-    return; // Exit if not exactly one row
-  }
-
-  // Proceed with the update if exactly one row is found
   const { data, error } = await supabase
     .from('users')
-    .upsert([
-      {
-        user_auth_id: props.user_auth_id,
-        name: accountForm.name,
-        email: accountForm.email,
-        status: accountForm.status,
-        role: rolesForm.userRole,
-        college_id: rolesForm.college,
-        pr_department_id: rolesForm.primaryDept,
-        sd_department_id: rolesForm.secondaryDept,
-        designation: rolesForm.designation
-      }
-    ])
-    .select(); // Ensure we get the inserted data back
+    .update({
+      name: accountForm.name,
+      email: accountForm.email,
+      password: accountForm.password,
+      rank: `${accountForm.rank} ${accountForm.rankValue}`,
+      item: accountForm.item,
+      role: accountForm.userRole,
+      status: accountForm.status,
+      pr_college_id: rolesForm.primaryCollege,
+      sd_college_id: rolesForm.secondaryCollege,
+      pr_department_id: rolesForm.primaryDept,
+      sd_department_id: rolesForm.secondaryDept,
+      acadServices_id: rolesForm.acadServices,
+      designation: rolesForm.designation,
+      })
+    .eq('user_auth_id', props.user_auth_id)
+    .select();
+    
 
   if (error) {
-    console.error('Error upserting user:', error.message);
-    toast.add({ title: 'Error upserting user', color: 'red' });
+    console.error('Error updating user:', error.message);
+    toast.add({ title: 'Error updating user', color: 'red' });
   } else {
-    console.log('User upserted successfully:', data);
-    toast.add({ title: 'User upserted successfully', color: 'green' });
+    console.log('User updated successfully:', data);
+    if (data.length === 0) {
+      console.warn('No rows were updated. Check if user_auth_id is correct or if RLS policies are blocking the update.');
+    } else {
+      console.log('Updated user data:', data);
+      toast.add({ title: 'User updated successfully!', color: 'green' });
+      isOpen.value = false; 
+    }
   }
 }
+
 onMounted(() => {
   getUser()
 })
@@ -116,7 +150,13 @@ const isOpen = ref(false);
 
 <template>
   <div class="flex items-center justify-center ">
-    <UButton @click="isOpen = true" variant="ghost" icon="i-material-symbols-edit" color="black"/>
+    <div v-if="usedIn === 'table'" class="flex items-center justify-center">
+      <UButton @click="isOpen = true" variant="ghost" icon="i-material-symbols-edit" color="black"/>
+    </div>
+
+    <div v-else-if="usedIn === 'profile'">
+      <UButton @click="isOpen = true" variant="ghost">Edit Info</UButton>
+    </div>
 
 
     <UModal v-model="isOpen">
@@ -138,38 +178,80 @@ const isOpen = ref(false);
               <UFormGroup label="Name" name="name" required>
                 <UInput v-model="accountForm.name" />
               </UFormGroup>
-              
-              <UFormGroup label="Email" name="email" required>
-                <UInput v-model="accountForm.email" />
-              </UFormGroup>
-              
-              <UFormGroup label="Password" name="password" required>
-                <UInput v-model="accountForm.password" type="password" />
-              </UFormGroup>
 
-              <UFormGroup label="Status" name="status" required>
+              <div class="flex flex-row gap-2">
+                <div class="w-1/2">
+                  <UFormGroup label="Email" name="email" required>
+                    <UInput v-model="accountForm.email" />
+                  </UFormGroup>
+                </div>
+
+                <div class="w-1/2">
+                  <UFormGroup label="Password" name="password" required>
+                    <UInput v-model="accountForm.password" type="password" />
+                  </UFormGroup>
+                </div>
+              </div>
+
+
+              <div class="flex flex-row gap-2">
+                <div class="w-1/2">
+                  <UFormGroup label="Rank" name="rank" required>
+                    <USelect
+                      v-model="accountForm.rank"
+                      :options="ranks"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+                <div class="w-1/2">
+                  <UFormGroup label="Rank Value" name="rank value" required>
+                    <USelect
+                      v-model="accountForm.rankValue"
+                      :options="range"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+              </div>
+
+              <UFormGroup label="Faculty Item" name="faculty item" required>
                 <USelect
-                  v-model="accountForm.status"
-                  :options="status"
+                  v-model="accountForm.item"
+                  :options="facultyItems"
+                  optionAttribute="name"
+                  required
                 />
               </UFormGroup>
-            </div>
-
-            
-            <div v-else-if="item.key === 'roles'" class="space-y-3">
 
               <UFormGroup label="User Role" name="current" required>
                 <USelect 
-                  v-model="rolesForm.userRole"
+                  v-model="accountForm.userRole"
                   :options="userRoles"
                   optionAttribute="name"
                   required
                 />
               </UFormGroup>
 
-              <UFormGroup label="College" name="college" required>
+              <UFormGroup label="User Status" name="current" required>
+                <USelect 
+                  v-model="accountForm.status"
+                  :options="status"
+                  optionAttribute="name"
+                  required
+                />
+              </UFormGroup>
+
+            </div>
+
+
+            <div v-else-if="item.key === 'roles'" class="space-y-3">
+
+              <UFormGroup label="Primary College" name="college" required>
                 <USelect
-                  v-model="rolesForm.college"
+                  v-model="rolesForm.primaryCollege"
                   :options="collegeOptions"
                   valueAttribute="value"
                   optionAttribute="name"
@@ -177,7 +259,27 @@ const isOpen = ref(false);
                   label="name"
                 />
               </UFormGroup>
-              
+
+              <UFormGroup label="Secondary College" name="college" required>
+                <USelect
+                  v-model="rolesForm.secondaryCollege"
+                  :options="collegeOptions"
+                  valueAttribute="value"
+                  optionAttribute="name"
+                  required
+                  label="name"
+                />
+              </UFormGroup>
+
+              <UFormGroup label="Academic Services" name="acadServices" required>
+                <USelect
+                  v-model="rolesForm.acadServices"
+                  :options="acadServicesOptions"
+                  optionAttribute="name"
+                  required 
+                />
+              </UFormGroup>
+
               <UFormGroup label="Primary Department" name="primaryDept" required>
                 <USelect
                   v-model="rolesForm.primaryDept"

@@ -1,10 +1,10 @@
 import { ref, computed } from 'vue'
 import { useNuxtApp } from '#app'
 
+const courses = ref<any[]>([])
 
 const courseInfo = ref({
   course_id: undefined,
-  programCode: undefined,
   courseCode: undefined,
   courseTitle: undefined,
   courseHours: undefined,
@@ -19,7 +19,6 @@ const onSubmit = async () => {
     .from('courses')
     .insert([
       {
-        program_code: courseInfo.value.programCode,
         course_code: courseInfo.value.courseCode,
         course_title: courseInfo.value.courseTitle,
         hours: courseInfo.value.courseHours,
@@ -40,7 +39,6 @@ const onSubmit = async () => {
       .upsert([
         {
           course_id: courseInfo.value.course_id,
-          program_code: courseInfo.value.programCode,
           course_code: courseInfo.value.courseCode,
           course_title: courseInfo.value.courseTitle,
           hours: courseInfo.value.courseHours,
@@ -60,7 +58,6 @@ const onSubmit = async () => {
 const clearInput = () => {
   courseInfo.value = {
     course_id: undefined,
-    programCode: undefined,
     courseCode: undefined,
     courseTitle: undefined,
     courseHours: undefined,
@@ -86,7 +83,6 @@ const getCourse = async () => {
 // insert course info to input group
 const editCourse = (course: any) => {
   courseInfo.value.course_id = course.course_id
-  courseInfo.value.programCode = course.program_code
   courseInfo.value.courseCode = course.course_code
   courseInfo.value.courseTitle = course.course_title  
   courseInfo.value.courseHours = course.hours

@@ -4,6 +4,13 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/google-fonts',
     '@nuxt/ui',
+    '@pinia/nuxt',
+    [
+      '@pinia/nuxt',
+      {
+        persist: true, // enable persistence for all stores
+      },
+    ],
   ],
   googleFonts: {
     families: {
@@ -17,6 +24,7 @@ export default defineNuxtConfig({
     public: {
       // This key will be accessible on both server and client
       supabaseUrl: process.env.NUXT_SUPABASE_URL,
+      supabaseKey: process.env.NUXT_SUPABASE_KEY,
     },
   },
   plugins: [

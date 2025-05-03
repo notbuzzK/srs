@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import getAcadSem from '~/composables/getAcadSem'
+const supabase = useNuxtApp().$supabase;
+const toast = useToast()
 
-const { acadYear, acadSem } = getAcadSem()
+const { data: { user } } = await supabase.auth.getUser()
+const userId = user?.id
+const acadYear = ref('')
+const acadSem = ref('')
 
 const isOpen = ref(false)
 const isConfirmed = ref(false)
@@ -18,12 +23,79 @@ const newTerm = ref({
   acadSem: ''
 })
 
-function onSubmit(){
-  acadYear.value = newTerm.value.acadYear
-  acadSem.value = newTerm.value.acadSem
+const getCurrectAcadYear = async () => {
+  const { data, error } = await supabase
+  .from('users')
+  .select('acadYear')
+  .eq('user_auth_id', userId)
+
+  if ( error ) {
+    console.error('Error fetching current academic year:', error.message)
+  } else {
+    acadYear.value = data[0].acadYear
+  }
+}
+
+const getCurrentTerm = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('acadSem')
+    .eq('user_auth_id', userId)
+
+  if (error) {
+    console.error('Error fetching current term:', error.message)
+  } else {
+    acadSem.value = data[0].acadSem
+  }
+}
+
+const onSubmit = async() =>{
+  await getCurrentTerm();
+  await getCurrectAcadYear();
+
+  const updates = {
+    acadYear: acadYear.value,
+    acadSem: acadSem.value
+  };
+
+  if (newTerm.value.acadYear !== acadYear.value && newTerm.value.acadYear !== '') {
+    updates.acadYear = newTerm.value.acadYear
+  } else if (newTerm.value.acadYear === '') {
+    updates.acadYear = acadYear.value
+  }
+
+  if (newTerm.value.acadSem !== acadSem.value && newTerm.value.acadSem !== '') {
+    updates.acadSem = newTerm.value.acadSem
+  } else if (newTerm.value.acadSem === '') {
+    updates.acadSem = acadSem.value
+  }
+
+  console.log('updates: ', updates)
+
+  if (Object.keys(updates).length > 0) {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('user_auth_id', userId)
+      .select()
+
+    if (error) {
+      console.error('Error updating user:', error.message)
+      toast.add({ title: "Error updating", color: 'red' })
+    } else {
+      console.log('User updated successfully:', data)
+      toast.add({ title: "User updated successfully", color: 'green' })
+    }
+  }
+
   isConfirmed.value = false
   isOpen.value = false
 }
+
+onMounted(async () => {
+  await getCurrectAcadYear()
+  await getCurrentTerm()
+})
 
 </script>
 <template>
@@ -42,7 +114,7 @@ function onSubmit(){
           </template>
 
           <div v-if="!isConfirmed">
-            <p>Are you sure you want to override the Academic Year and Semester?</p>
+            <p>Are you sure you want to override the Academic Year and Semester? <b>This only applies to you</b>.</p>
           </div>
           
           <div v-else>

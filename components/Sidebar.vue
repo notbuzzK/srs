@@ -48,11 +48,13 @@ function handleRoute(routeName: string) {
 const iconMap: Record<string, string> = {
   dashboard: "i-material-symbols-home-outline-rounded",
   schedule: "i-tabler-calendar-week-filled",
+  "departmentalSchedule": "i-tabler-calendar-event",
   courses: "i-tabler-book",
   summary: "i-tabler-file-export",
-  "departmental-summary": "i-tabler-report",
+  "departmentalSummary": "i-tabler-report",
   "manageMembers": "i-tabler-user-check",
-  "statistics": "i-tabler-chart-bar"
+  "statistics": "i-tabler-chart-bar",
+  approvals: "i-tabler-checks",
 }
 </script>
 

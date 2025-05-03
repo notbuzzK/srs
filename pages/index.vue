@@ -2,10 +2,11 @@
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
 const supabase = useNuxtApp().$supabase;
-
+import { useNameStore } from '~/stores/nameStore'
+import { useDesignationStore } from '~/stores/designationStore'
 const router = useRouter()
 const toast = useToast()
-let { userId, userRole, user_auth_id } = getUserInfo()
+let { userId, userRole } = getUserInfo()
 
 const schema = z.object({
   email: z.string(),
@@ -45,7 +46,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 }
 
 async function handleRoute(){
-  await getUserRole();
+  await getUserNameRoleDesignation();
 
   switch(userRole.value){
     case 'Faculty': router.push('/faculty/dashboard'); break;
@@ -53,19 +54,27 @@ async function handleRoute(){
     case 'CEEA': router.push('/CEEA/dashboard'); break;
     case 'College Admin': router.push('/collegeAdmin/dashboard'); break;
     case 'System Admin': router.push('/systemAdmin/manageMembers'); break;
+    case 'Dean': router.push('/dean/dashboard'); break;
   }
 }
 
-async function getUserRole(){
+
+async function getUserNameRoleDesignation(){
   let { data: users, error } = await supabase
     .from('users')
-    .select('role')
+    .select('name, role, designation')
     .eq('user_auth_id', userId.value)
     
     if (error) {
       console.error('Error fetching user role:', error.message)
     } else if (users && users.length > 0) {
       userRole.value = users[0].role
+      useNameStore().name = users[0].name
+      useDesignationStore().designation = users[0].designation
+      console.log('User role:', userRole.value)
+      console.log('User name:', useNameStore().name)
+      console.log('User designation:', useDesignationStore().designation)
+      console.log(users[0])
     } else {
       console.error('No user found with the given user_auth_id')
     }
@@ -76,7 +85,7 @@ async function getUserRole(){
     <div class="flex justify-center items-center h-screen bg-[#E8F8EF]">
     <div class="bg-white p-8 rounded-lg shadow-lg w-[25%] flex flex-col justify-center items-center">
       <div class="bg-[#017C35] w-16 h-16 rounded-full flex justify-center items-center">
-        <UIcon name="solar:user-outline" class="w-8 h-8 text-white" />
+        <UIcon name="i-material-symbols-light-person" class="w-10 h-10 text-white" />
       </div>
       <div class="mt-4 w-[80%]">
         <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">

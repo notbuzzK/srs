@@ -1,12 +1,13 @@
 <script setup lang="ts">
   import { useCourse } from '~/composables/useCourse'
-
+  const name = useNameStore()
+  const designation = useDesignationStore()
   const {
     courseInfo,
     onSubmit,
     clearInput,
   } = useCourse()
-
+// TODO: make auto refresh upon saving course
 </script>
 <template>
   <div class="flex max-h-screen">
@@ -22,14 +23,16 @@
         <div class="flex justify-between h-full items-center p-2 px-6">
           <h1 class="font-sans text-[#017C35] font-bold">Faculty Schedule Recommendation System</h1>
 
-          <div class="flex justify-between gap-8">
+          <div class="flex justify-between gap-8 items-center">
+           <!--  <p class="font-bold text-[#017C35]">{{ name.name }}, {{ designation.designation }}</p> -->
+            <div class="flex justify-between gap-8">
+              <!--Notifcation-->
+              <Notifications />
 
-            <!--Notifcation-->
-            <Notifications />
+              <!--Profile-->
+              <Profile />
 
-            <!--Profile-->
-            <Profile />
-
+            </div>
           </div>
         </div>
 
