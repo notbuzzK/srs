@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { _height } from '#tailwind-config/theme';
 import { useFacultyStore } from '~/stores/facultyStore'; 
 const supabase = useNuxtApp().$supabase;
 
@@ -16,39 +17,120 @@ const {
   acadYear,
   acadSem
 } = useSchedule()
-const primaryDept = ref<Number>(0)
+
 const rows = ref<any>([])
 const facultyId = ref<any>('')
 const facultyInfo = ref<any>({})
 const isOpen = ref(false)
 const facultyAvailability = ref<any>([])
+const loading = ref(false)
+const scheduleModal = ref(false)
 
-const getSchedulerDepartment = async () => {
-  const { data, error } = await supabase
-  .from('users')
-  .select('pr_department_id')
-  .eq('user_auth_id', userId)
-
-  if (error) {
-    console.error('Error fetching primary department:', error.message)
-  } else {
-    primaryDept.value = data[0].pr_department_id
-  }
-}
-
-const getMembersUnderScheduler = async () => {
-
+// Fetch the full userRow so we know all FK columns
+const userRow = ref<any>(null)
+async function loadUserRow() {
+  if (!userId) return
   const { data, error } = await supabase
     .from('users')
-    .select('*')
-    .eq('pr_department_id', primaryDept.value); 
+    .select(`
+      pr_college_id,
+      sd_college_id,
+      pr_department_id,
+      sd_department_id,
+      pr_acadServices_id,
+      sd_acadServices_id
+    `)
+    .eq('user_auth_id', userId)
+    .single()
+  if (error) console.error('Error loading user row:', error.message)
+  else userRow.value = data
+}
 
+// Derive the single unit from that row
+const { unit } = useUserUnit(userRow)
+
+// Load child department IDs under this unit
+const deptIds = ref<number[]>([])
+async function loadChildDeptIds() {
+  if (!unit.value) {
+    deptIds.value = []
+    return
+  }
+  if (unit.value.type === 'department') {
+    deptIds.value = [unit.value.id]
+    return
+  }
+  // if college or service, fetch its departments
+  // — CHANGED: service now uses pr_acadServices_id & sd_acadServices_id
+  const fkFilter = unit.value.type === 'college'
+    ? `college_id.eq.${unit.value.id}`
+    : `pr_acadServices_id.eq.${unit.value.id},sd_acadServices_id.eq.${unit.value.id}`
+
+  const { data, error } = await supabase
+    .from('departments')
+    .select('department_id')
+    .or(fkFilter)
   if (error) {
-    console.error('Error fetching members:', error.message);
+    console.error('Error loading departments:', error.message)
+    deptIds.value = []
   } else {
-    rows.value = data; // Store the fetched data
+    deptIds.value = data!.map(d => d.department_id)
   }
 }
+
+// Use that to fetch *all* members under the scheduler’s unit
+async function loadMembersUnderScheduler() {
+  loading.value = true
+  let query = supabase.from('users').select('*')
+
+  if (deptIds.value.length) {
+    const list = deptIds.value.join(',')
+    query = query.or(
+      `pr_department_id.in.(${list}),sd_department_id.in.(${list})`
+    )
+  } else if (unit.value) {
+    // no sub-departments: filter by primary OR secondary of each unit type
+    if (unit.value.type === 'department') {
+      query = query.or(
+        `pr_department_id.eq.${unit.value.id},sd_department_id.eq.${unit.value.id}`
+      )
+    }
+    else if (unit.value.type === 'college') {
+      query = query.or(
+        `pr_college_id.eq.${unit.value.id},sd_college_id.eq.${unit.value.id}`
+      )
+    }
+    else { // service
+      // — CHANGED: now include both primary & secondary acadServices
+      query = query.or(
+        `pr_acadServices_id.eq.${unit.value.id},sd_acadServices_id.eq.${unit.value.id}`
+      )
+    }
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('Error fetching members:', error.message)
+    rows.value = []
+  } else {
+    rows.value = data || []
+  }
+  loading.value = false
+}
+
+onMounted(async () => {
+  await getCurrectAcadYear()
+  await getCurrentTerm()
+  await loadUserRow()
+  await loadChildDeptIds()
+  await loadMembersUnderScheduler()
+})
+
+// re-run when unit or deps change
+watch(unit, async () => {
+  await loadChildDeptIds()
+  await loadMembersUnderScheduler()
+})
 
 const getCurrectAcadYear = async () => {
   const { data, error } = await supabase
@@ -90,12 +172,19 @@ const getAvailabilityTime = async () => {
     }
 }
 
-onMounted(async () => {
-  await getCurrectAcadYear()
-  await getCurrentTerm()
-  await getSchedulerDepartment()
-  await getMembersUnderScheduler()
-})
+const getFacultyInfo = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('user_auth_id', facultyId.value)
+    .single()
+
+  if (error) {
+    console.error('Error fetching faculty info:', error.message)
+  } else {
+    facultyInfo.value = data
+  }
+}
 
 const columns = [{
   key: 'name',
@@ -106,7 +195,6 @@ const columns = [{
   label: '',
   class: 'w-1/12',
 }]
-
 
 const q = ref('')
 const page = ref(1)
@@ -129,7 +217,7 @@ const paginatedRows = computed(() => {
 
 </script>
 <template>
-  <div class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-8 grid-rows-5">
+  <div class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-9 grid-rows-5">
 
     <div class="col-span-2 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 mr-2 overflow-y-auto">
 
@@ -145,7 +233,7 @@ const paginatedRows = computed(() => {
                 icon="i-tabler-pencil"
                 class="text-[#017C35] hover:text-[#16B559]"
                 variant="ghost"
-                @click="[facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime()]" />
+                @click="[facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime(), scheduleModal = true, console.log(facultyInfo)] " />
             </template>
 
           </UTable>
@@ -154,9 +242,54 @@ const paginatedRows = computed(() => {
           <UPagination v-model="page" :page-count="pageCount" :total="filteredRows.length" />
         </div>
       </div>
+
+      <UModal v-model="scheduleModal" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-[600px]' }">
+        <div class="flex flex-col h-full p-4 justify-evenly">
+          <!-- Modal Header -->
+          <div class="">
+            <h1 class="text-[#017C35] font-bold text-xl">Faculty Schedule</h1>
+            <p class="text-[#017C35] font-medium text-sm"></p>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="h-full my-2">
+            <div class="grid grid-cols-6 grid-rows-3 gap-4 h-full">
+
+              <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
+                <h1 class="text-[#017C35] font-bold text-md">Faculty Info</h1>
+                <p>{{ facultyInfo.name }}</p>
+                <p>{{ facultyInfo.designation }}</p>
+                <p>{{ facultyInfo.item }}</p>
+              </div>
+
+              <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
+                <h1 class="text-[#017C35] font-bold text-md">Availability Time</h1>
+              </div>
+
+              <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
+                <h1 class="text-[#017C35] font-bold text-md">Select Workload</h1>
+                <br>
+                <br>
+                <br>
+                <p class="text-[#017C35] font-medium text-sm text-center">Suggest Schedule</p>
+              </div>
+
+              <div class="col-span-6 row-span-3 p-4 rounded-lg shadow-inner">
+                <h1 class="text-[#017C35] font-bold text-md">Suggested Schedule</h1>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="flex justify-between">
+            <UButton variant="solid" class="bg-[#DD3A3A] text-white" @click="scheduleModal = false">Close</UButton>
+            <UButton variant="solid" class="bg-[#017C35] text-white" @click="scheduleModal = false">Apply</UButton>
+          </div>
+        </div>
+      </UModal>
     </div>
 
-    <div class="col-span-4 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 ml-2 mr-2 overflow-y-auto">
+    <div class="col-span-5 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 ml-2 mr-2 overflow-y-auto">
 
       <TimeTable :user_auth_id="facultyId" />
        

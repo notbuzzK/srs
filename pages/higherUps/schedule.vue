@@ -57,7 +57,7 @@ onMounted(async ()=> {
   <div class="flex max-h-screen">
 
     <!--Sidebar-->
-    <Sidebar :userRole="'Dean'" />
+    <Sidebar :userRole="'Higher Ups'" />
 
     <div class="w-full gap-4">
 

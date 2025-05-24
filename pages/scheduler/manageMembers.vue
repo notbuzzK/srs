@@ -26,7 +26,7 @@ async function fetchUserRow() {
   if (!userAuthId.value) return
   const { data, error } = await supabase
     .from('users')
-    .select('pr_department_id, sd_department_id, acadServices_id, pr_college_id, sd_college_id')
+    .select('pr_department_id, sd_department_id, pr_acadServices_id, sd_acadServices_id, pr_college_id, sd_college_id')
     .eq('user_auth_id', userAuthId.value)
     .single()
   if (error) {
@@ -36,7 +36,7 @@ async function fetchUserRow() {
   }
 }
 
-// determine which unit to pass using your composable
+// determine which unit to pass using composable
 // pass the ref directly so it reacts when userRow.value changes
 const { unit } = useUserUnit(userRow)
 

@@ -6,7 +6,11 @@ import { useNameStore } from '~/stores/nameStore'
 import { useDesignationStore } from '~/stores/designationStore'
 const router = useRouter()
 const toast = useToast()
-let { userId, userRole } = getUserInfo()
+let { 
+  userId,
+  userRole,
+  designation
+ } = getUserInfo()
 
 const schema = z.object({
   email: z.string(),
@@ -54,7 +58,7 @@ async function handleRoute(){
     case 'CEEA': router.push('/CEEA/dashboard'); break;
     case 'College Admin': router.push('/collegeAdmin/dashboard'); break;
     case 'System Admin': router.push('/systemAdmin/manageMembers'); break;
-    case 'Dean': router.push('/dean/dashboard'); break;
+    case 'Higher Ups': router.push('/higherUps/dashboard'); break;
   }
 }
 

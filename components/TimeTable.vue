@@ -22,6 +22,7 @@ const {
   userId,
   fetchSchedules,
   onCourseSearch,
+  modality,
 } = useSchedule()
 
 const props = defineProps<{ user_auth_id: string }>()
@@ -40,6 +41,7 @@ function onModalClose() {
     type: '',
     programCode: '',
     course: '',
+    modality: '',
     room: 'TBA',
     day: '',
     startTime: otherTimeSlots[0],
@@ -90,9 +92,10 @@ function onModalClose() {
                   <div class="flex flex-col items-center justify-center h-full text-center">
                     <b>{{ getEvent(day, slotIndex).type }}</b>
                     <span>
-                      {{ getEvent(day, slotIndex).programCode }} <br>
+                      {{ getEvent(day, slotIndex).programCode }}
                       <b>{{ getCourseCode(getEvent(day, slotIndex).course) }}</b>
                     </span>
+                    <span>{{ getEvent(day, slotIndex).modality }}</span> 
                     <span>{{ getEvent(day, slotIndex).room }}</span>
                     <small>
                       {{ otherTimeSlots[getEvent(day, slotIndex).startIndex] }} <br> to <br> 
@@ -111,12 +114,12 @@ function onModalClose() {
     <UModal v-model="showModal" :transition="false" @hide="onModalClose">
       <UCard class="!max-h-[60%]">
         <template #header>
-          <h2 class="text-xl font-bold">Add Event</h2>
+          <h2 class="text-xl font-bold">Add Schedule</h2>
         </template>
         <div class="flex flex-col gap-4">
           <!-- Event Type (no name) -->
           <div>
-            <label class="block mb-1 font-semibold">Event Type</label>
+            <label class="block mb-1 font-semibold">Schedule Type</label>
             <USelect
               v-model="newEvent.type"
               :options="eventTypes"
@@ -146,10 +149,16 @@ function onModalClose() {
             </div>
           </div>
 
-          <!-- Room -->
-          <div>
-            <label class="block mb-1 font-semibold">Room</label>
-            <UInput v-model="newEvent.room" placeholder="TBA" class="w-full" />
+          <!-- Room & Modality-->
+          <div class="flex gap-4">
+            <div class="w-1/2">
+              <label class="block mb-1 font-semibold">Room</label>
+              <UInput v-model="newEvent.room" placeholder="TBA" class="w-full" />
+            </div>
+            <div class="w-1/2">
+              <label class="block mb-1 font-semibold">Modality</label>
+              <USelect v-model="newEvent.modality" :options="modality" class="w-full" />
+            </div>
           </div>
 
           <!-- Day -->

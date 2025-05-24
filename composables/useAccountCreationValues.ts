@@ -9,7 +9,7 @@ const userRoles = [
   'CEEA',
   'College Admin',
   'System Admin',
-  'Dean',
+  'Higher Ups',
 ];
 
 const facultyItems = [
@@ -55,7 +55,7 @@ const designationOptions = [
 ];
 
 const acadServicesOptions = [
-  { value: 0, name: 'None' }, 
+  { value: null, name: 'None' }, 
   { value: 1, name: 'Center for Community Development and Service - Learning', placeholder: 'CCDSL' },
   { value: 2, name: 'Center for Humanities and Social Sciences', placeholder: 'CHSS' },
   { value: 3, name: 'Romeo P. Ariniego, MD, AFSC Library', placeholder: 'RPAMDAFSC Library' },
@@ -64,7 +64,7 @@ const acadServicesOptions = [
 ]
 
 const collegeOptions = [
-  { value: 0, name: 'None' },
+  { value: null, name: 'None' },
   { value: 1, name: 'College of Allied Sciences', placeholder: 'CAS' },
   { value: 2, name: 'College of Medical Imaging and Therapy', placeholder: 'CMIT' },
   { value: 3, name: 'College of Medical Laboratory Science', placeholder: 'CMLS' },
@@ -78,7 +78,7 @@ const collegeOptions = [
 ];
 
 const departmentOptions = [
-  { value: 0, name: 'None' },
+  { value: null, name: 'None' },
   { value: 1, name: 'Biochemistry (BCH)', placeholder: 'BCH' },
   { value: 2, name: 'Department of Natural Sciences and Mathematics', placeholder: 'DNSM' },
   { value: 3, name: 'Life and Health Sciences', placeholder: 'LHS'  },

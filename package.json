@@ -13,12 +13,12 @@
   "dependencies": {
     "@coreui/coreui": "^5.2.0",
     "@coreui/vue": "^5.4.1",
-    "@nuxt/cli": "^3.22.2",
-    "@nuxt/ui": "^2.21.0",
+    "@nuxt/cli": "^3.25.1",
+    "@nuxt/ui": "^2.22.0",
     "@nuxtjs/auth-next": "^5.0.0-1667386184.dfbbb54",
     "@nuxtjs/google-fonts": "^3.2.0",
     "@pinia/nuxt": "^0.11.0",
-    "@supabase/supabase-js": "^2.48.1",
+    "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.4.7",
     "nuxt": "^3.15.4",
     "pinia": "^3.0.2",
@@ -30,11 +30,13 @@
   },
   "devDependencies": {
     "@iconify-json/charm": "^1.2.2",
+    "@iconify-json/gridicons": "^1.2.2",
     "@iconify-json/ic": "^1.2.2",
     "@iconify-json/material-symbols": "^1.2.16",
+    "@iconify-json/material-symbols-light": "^1.2.21",
     "@iconify-json/octicon": "^1.2.5",
     "@iconify-json/tabler": "^1.2.17",
-    "@nuxt/types": "^2.18.1",
-    "@nuxtjs/supabase": "^1.4.6"
+    "@nuxtjs/supabase": "^1.5.1",
+    "@types/node": "^22.15.18"
   }
 }

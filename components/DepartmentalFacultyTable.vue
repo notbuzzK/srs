@@ -36,7 +36,7 @@ const columns = [{
   sortable: true,
   class: 'w-[10%]'
 }, {
-  key: 'acadServices_id',
+  key: 'acadServices',
   label: 'Acad Services',
   sortable: true,
   class: 'w-[10%]'
@@ -103,11 +103,23 @@ async function loadPeople() {
       `pr_department_id.in.(${deptIds.join(',')}),sd_department_id.in.(${deptIds.join(',')})`
     )
   } else {
-    let col = ''
-    if (props.unitType === 'department') col = 'pr_department_id'
-    else if (props.unitType === 'college') col = 'pr_college_id'
-    else if (props.unitType === 'service') col = 'acadServices_id'
-    query = query.eq(col, props.unitId)
+    // — CHANGED: include both primary and secondary for each unit type —
+    if (props.unitType === 'department') {
+      query = query.or(
+        `pr_department_id.eq.${props.unitId},sd_department_id.eq.${props.unitId}`
+      )
+    }
+    else if (props.unitType === 'college') {
+      query = query.or(
+        `pr_college_id.eq.${props.unitId},sd_college_id.eq.${props.unitId}`
+      )
+    }
+    else if (props.unitType === 'service') {
+      // — CHANGED: include both primary & secondary academic‐service slots
+      query = query.or(
+        `pr_acadServices_id.eq.${props.unitId},sd_acadServices_id.eq.${props.unitId}`
+      )
+    }
   }
 
   const { data: users, error } = await query
@@ -122,6 +134,8 @@ async function loadPeople() {
     const sdCol = u.sd_college_id
     const prDept = u.pr_department_id
     const sdDept = u.sd_department_id
+    const prSvc = u.pr_acadServices_id
+    const sdSvc = u.sd_acadServices_id
 
     // Resolve college logic
     let college = 'None'
@@ -141,14 +155,20 @@ async function loadPeople() {
       department = getDepartmentName(prDept || sdDept)
     }
 
+    let acadServices = 'None'
+    if (prSvc && sdSvc && prSvc !== sdSvc) {
+      return `${getAcadServicesName(prSvc)}, ${getAcadServicesName(sdSvc)}`
+    } else if (prSvc || sdSvc) {
+      return getAcadServicesName(prSvc || sdSvc)
+    }
+
     return {
       ...u,
       college,
       department,
-      acadServices_id: getAcadServicesName(u.acadServices_id ?? 0)
+      acadServices,
     }
   })
-
   loading.value = false
 }
 
@@ -187,7 +207,6 @@ onMounted(async () => {
   await loadPeople()
 })
 </script>
-
 <template>
   <div class="flex flex-col justify-between h-full">
     <div class="flex justify-between items-center border-b px-3 py-2.5">

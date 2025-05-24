@@ -60,6 +60,16 @@ const otherTimeSlots = [
   '07:00 PM'
 ]
 
+const modality = [
+  'Blended',
+  'Classroom',
+  'Lab/Clin/RLE',
+  'Online',
+  'Laboratory',
+  'ISP/Online/Lab',
+  'Others'
+]
+
 const timeSlotsIndices = Array.from({ length: timeSlots.length }, (_, i) => i)
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const eventTypes = ['Teaching', 'AW', 'ARP', 'CH']
@@ -75,6 +85,7 @@ const newEvent = ref({
   type: '',
   programCode: '',
   course: '',
+  modality: '',
   room: 'TBA',
   day: 'Monday',
   startTime: timeSlots[0],
@@ -193,6 +204,7 @@ function addEvent() {
     type: newEvent.value.type,
     programCode: newEvent.value.programCode,
     course: newEvent.value.course,
+    modality: newEvent.value.modality,
     room: newEvent.value.room,
     day: newEvent.value.day,
     startIndex: startIndex,
@@ -211,6 +223,7 @@ function addEvent() {
     type: '',
     programCode: '',
     course: '',
+    modality: '',
     room: 'TBA',
     day: '',
     startTime: otherTimeSlots[0],
@@ -297,6 +310,7 @@ function cancelModal() {
     type: '',
     programCode: '',
     course: '',
+    modality: '',
     room: 'TBA',
     day: 'Monday',
     startTime: otherTimeSlots[0],
@@ -325,6 +339,7 @@ async function fetchSchedules(user_auth_id: string) {
       course: item.course_id,
       name: item.schedule_name,
       type: item.schedule_type,
+      modality: item.modality,
       day: item.day,
       displayStart: item.start_time,
       displayEnd: item.end_time,
@@ -348,6 +363,7 @@ async function onSubmit() {
       department_id: event.department_id,
       programCode: event.programCode,
       course_id: event.course,
+      modality: event.modality,
       day: event.day,
       schedule_type: event.type,
       start_time: event.displayStart,
@@ -409,5 +425,6 @@ export function useSchedule() {
     acadSem,
     fetchSchedules,
     onCourseSearch,
+    modality
   }
 }

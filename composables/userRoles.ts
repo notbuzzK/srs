@@ -5,7 +5,7 @@ export const userRoles = {
   CEEA: ["dashboard", "schedule", "summary",  "departmentalSummary"],
   "College Admin": ["dashboard", "schedule", "summary", "manageMemebers", "statistics"],
   "System Admin": ["statistics", "manageMembers"],
-  Dean: ["dashboard", "schedule", "summary", "departmentalSummary", "approvals"],
+  "Higher Ups": ["dashboard", "schedule", "summary", "departmentalSummary", "approvals"],
 };
 
 // Default route for each role
@@ -15,5 +15,5 @@ export const defaultRoutes: Record<string, string> = {
   CEEA: "dashboard",
   "College Admin": "dashboard",
   "System Admin": "statistics",
-  Dean: "dashboard",
+  "Higher Ups": "dashboard",
 };

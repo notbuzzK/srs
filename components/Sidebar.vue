@@ -36,6 +36,8 @@ function handleRoute(routeName: string) {
     router.push(`/systemAdmin/${routeName}`)
   } else if (props.userRole === 'College Admin') {
     router.push(`/collegeAdmin/${routeName}`)
+  } else if (props.userRole === 'Higher Ups') {
+    router.push(`/higherUps/${routeName}`)
   } else {
     router.push(`/${props.userRole}/${routeName}`)
   }
