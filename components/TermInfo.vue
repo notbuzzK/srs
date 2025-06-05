@@ -18,7 +18,7 @@ const userRow = ref<any>(null)
 async function loadUserRow() {
   const { data, error } = await supabase
     .from('users')
-    .select('pr_department_id, sd_department_id, pr_college_id, sd_college_id, acadServices_id')
+    .select('pr_department_id, sd_department_id, pr_college_id, sd_college_id, pr_acadServices_id, sd_acadServices_id')
     .eq('user_auth_id', userAuthId)
     .single()
   if (error) console.error(error)
@@ -66,19 +66,71 @@ async function loadCurrent() {
 }
 onMounted(loadCurrent)
 
-// on submit: update users in all relevant fk slots
+
+// ───────────────────────────────────────────────────────────────────────────
+// NEW: archiveSchedules()
+// Moves every row from `facultySchedules` → `historicalSchedules`
+// ───────────────────────────────────────────────────────────────────────────
+async function archiveSchedules() {
+  // 1) fetch all rows from facultySchedules
+  const { data: schedData, error: fetchErr } = await supabase
+    .from('facultySchedules')
+    .select('*')
+  if (fetchErr) {
+    console.error('Error fetching facultySchedules:', fetchErr.message)
+    toast.add({ title: 'Failed to archive schedules', color: 'red' })
+    return false
+  }
+  if (!schedData || schedData.length === 0) {
+    // nothing to move
+    return true
+  }
+
+  // 2) insert those rows into historicalSchedules
+  const { error: insertErr } = await supabase
+    .from('historicalSchedules')
+    .insert(schedData)
+  if (insertErr) {
+    console.error('Error inserting into historicalSchedules:', insertErr.message)
+    toast.add({ title: 'Failed to archive schedules', color: 'red' })
+    return false
+  }
+
+  // 3) delete only those same rows from facultySchedules (by id)
+  const idsToDelete = schedData.map((row: any) => row.schedule_id)
+  console.log('idsToDelete:', idsToDelete)
+  const { error: deleteErr } = await supabase
+    .from('facultySchedules')
+    .delete()
+    .in('schedule_id', idsToDelete)
+  if (deleteErr) {
+    console.error('Error deleting from facultySchedules:', deleteErr.message)
+    toast.add({ title: 'Failed to clear old schedules', color: 'red' })
+    return false
+  }
+
+  return true
+}
+
+
 const onSubmit = async () => {
-  // validation
+  // 0) archive all schedules first
+  const ok = await archiveSchedules()
+  if (!ok) {
+    return
+  }
+
+  // 1) validation
   if (!acadInfo.value.academicYear || !acadInfo.value.term) {
     toast.add({ title: 'Please fill in all fields', color: 'red' })
     return
   }
   acadInfo.value.academicYear = acadInfo.value.academicYear.replace(/\s/g, '')
 
-  // get the list of dept-IDs under this unit
+  // 2) get the list of dept-IDs under this unit
   const deptIds = await getChildDeptIds()
 
-  // build update query
+  // 3) build update query for users
   let query = supabase
     .from('users')
     .update({
@@ -102,14 +154,14 @@ const onSubmit = async () => {
     if (deptIds.length) {
       query = query.in('pr_department_id', deptIds)
     } else {
-      query = query.eq('acadServices_id', unit.value.id)
+      query = query.eq('pr_acadServices_id', unit.value.id)
     }
   } else {
     toast.add({ title: 'No organizational unit found', color: 'red' })
     return
   }
 
-  // execute update
+  // 4) execute update
   const { data, error } = await query.select()
   if (error) {
     console.error(error)
@@ -147,7 +199,7 @@ const isOpen = ref(false)
           </template>
 
           <div>
-            <p class="text-justify">Are you sure you want to override the Academic Year and Semester? Doing so sets the Academic Year and Semester of all the faculty members under your department.</p>
+            <p class="text-justify">Are you sure you want to override the Academic Year and Semester? Doing so sets removes all existing schedule for this term and will not be recoverable.</p>
           </div>
 
           <template #footer>

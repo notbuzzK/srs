@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { _height } from '#tailwind-config/theme';
+import type { z } from 'zod';
 import { useFacultyStore } from '~/stores/facultyStore'; 
 const supabase = useNuxtApp().$supabase;
 
@@ -17,6 +18,12 @@ const {
   acadYear,
   acadSem
 } = useSchedule()
+
+const {
+  getCollegeName,
+  getDepartmentName,
+  getAcadServicesName,
+} = useAccountCreationValues()
 
 const rows = ref<any>([])
 const facultyId = ref<any>('')
@@ -172,19 +179,25 @@ const getAvailabilityTime = async () => {
     }
 }
 
-const getFacultyInfo = async () => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('user_auth_id', facultyId.value)
-    .single()
-
-  if (error) {
-    console.error('Error fetching faculty info:', error.message)
-  } else {
-    facultyInfo.value = data
+const getFacultyUnit = () => {
+  return {
+    name: facultyInfo.value.name,
+    email: facultyInfo.value.email,
+    designation: facultyInfo.value.designation,
+    pr_rank: `${facultyInfo.value.pr_rank} ${facultyInfo.value.pr_rankValue}`,
+    sd_rank: `${facultyInfo.value.sd_rank} ${facultyInfo.value.sd_rankValue}`,
+    item: facultyInfo.value.item,
+    status: facultyInfo.value.status,
+    pr_college_id: getCollegeName(facultyInfo.value.pr_college_id),
+    pr_department_id: getDepartmentName(facultyInfo.value.pr_department_id),
+    pr_acadServices_id: getAcadServicesName(facultyInfo.value.pr_acadServices_id),
+    sd_college_id: getCollegeName(facultyInfo.value.sd_college_id),
+    sd_department_id: getDepartmentName(facultyInfo.value.sd_department_id),
+    sd_acadServices_id: getAcadServicesName(facultyInfo.value.sd_acadServices_id),
   }
 }
+
+const suggestedSchedule = ref(false)
 
 const columns = [{
   key: 'name',
@@ -233,7 +246,7 @@ const paginatedRows = computed(() => {
                 icon="i-tabler-pencil"
                 class="text-[#017C35] hover:text-[#16B559]"
                 variant="ghost"
-                @click="[facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime(), scheduleModal = true, console.log(facultyInfo)] " />
+                @click="async () => [facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime(), scheduleModal = true, console.log(facultyInfo), suggestedSchedule = false, facultyInfo = await getFacultyUnit()]" />
             </template>
 
           </UTable>
@@ -243,7 +256,9 @@ const paginatedRows = computed(() => {
         </div>
       </div>
 
-      <UModal v-model="scheduleModal" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-[600px]' }">
+
+
+      <UModal v-model="scheduleModal" :ui="{ width: 'w-full sm:max-w-5xl', height: 'h-[600px]', }">
         <div class="flex flex-col h-full p-4 justify-evenly">
           <!-- Modal Header -->
           <div class="">
@@ -253,36 +268,125 @@ const paginatedRows = computed(() => {
 
           <!-- Modal Body -->
           <div class="h-full my-2">
-            <div class="grid grid-cols-6 grid-rows-3 gap-4 h-full">
+            <div class="grid grid-cols-6 grid-rows-4 gap-4 h-full">
 
-              <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
+              <div class="col-span-2 row-span-4 p-4 rounded-lg shadow-inner">
                 <h1 class="text-[#017C35] font-bold text-md">Faculty Info</h1>
-                <p>{{ facultyInfo.name }}</p>
-                <p>{{ facultyInfo.designation }}</p>
-                <p>{{ facultyInfo.item }}</p>
+                <div class="flex flex-col justify-between h-full">
+                  <div class="flex justify-between">
+                    <div>
+                      <p>Name: </p>
+                      <p>Email: </p>
+                      <p>Designation: </p>
+
+                      <p>Item: </p>
+                      <p>Status: </p>
+                      <p></p>
+                    </div>
+                    <div class="text-right">
+                      <p>{{ facultyInfo.name }}</p>
+                      <p>{{ facultyInfo.email }}</p>
+                      <p>{{ facultyInfo.designation }}</p>
+
+                      <p>{{ facultyInfo.item }}</p>
+                      <p>{{ facultyInfo.status }}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="font-medium text-[#017C35]">Primary Unit:</p>
+                    <div class="flex justify-between">
+                      <div>
+                        <p>College: </p>
+                        <p>Department: </p>
+                        <p>Acad Services: </p>
+                        <p>Rank: </p>
+                      </div>
+                      <div class="text-right">
+                        <p>{{ facultyInfo.pr_college_id }}</p>
+                        <p>{{ facultyInfo.pr_department_id }}</p>
+                        <p>{{ facultyInfo.pr_acadServices_id }}</p>
+                        <p>{{ facultyInfo.pr_rank}}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="facultyInfo.sd_college_id !== 'None' && facultyInfo.sd_department_id !== 'None' && facultyInfo.sd_acadServices_id !== 'None'"  >
+                    <p class="font-medium text-[#017C35]">Secondary Unit:</p>
+                    <div class="flex justify-between">
+                      <div>
+                        <p>College: </p>
+                        <p>Department: </p>
+                        <p>Acad Services: </p>
+                        <p>Rank: </p>
+                      </div>
+                      <div class="text-right">
+                        <p>{{ facultyInfo.sd_college_id }}</p>
+                        <p>{{ facultyInfo.sd_department_id }}</p>
+                        <p>{{ facultyInfo.sd_acadServices_id }}</p>
+                        <p>{{ facultyInfo.sd_rank}}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h1 class="text-[#017C35] font-bold text-md">Availability Time</h1>
+                    <p @click="isOpen = true" class="text-[#017C35] font-medium cursor-pointer text-sm text-center">Show Faculty Availability Time</p>
+                  </div>
+                </div>
+            
               </div>
 
+              <div class="col-span-4 row-span-4 p-4 rounded-lg shadow-inner ">
+                <div v-if="!suggestedSchedule" class="h-full">
+                  <h1 class="text-[#017C35] font-bold text-md">Select Workload</h1>
+                  <p class="text-[#017C35] font-medium text-sm text-center align-middle cursor-pointer" @click="suggestedSchedule = true">Suggest Schedule (not working yet)</p>
+                </div>
+                <div v-else class="h-full">
+                  <h1 class="text-[#017C35] font-bold text-md">Suggested Schedule</h1>
+                  <p class="text-[#017C35] font-medium text-sm text-center align-middle ">Smart suggestion not working yet</p>
+                </div>
+              </div>
+
+<!-- 
               <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
-                <h1 class="text-[#017C35] font-bold text-md">Availability Time</h1>
-              </div>
 
-              <div class="col-span-2 row-span-1 p-4 rounded-lg shadow-inner">
-                <h1 class="text-[#017C35] font-bold text-md">Select Workload</h1>
-                <br>
-                <br>
-                <br>
-                <p class="text-[#017C35] font-medium text-sm text-center">Suggest Schedule</p>
-              </div>
-
-              <div class="col-span-6 row-span-3 p-4 rounded-lg shadow-inner">
-                <h1 class="text-[#017C35] font-bold text-md">Suggested Schedule</h1>
-              </div>
+              </div> -->
             </div>
           </div>
 
+        <UModal v-model="isOpen">
+          <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }" >
+            <template #header>
+              <div class="flex items-center justify-between">
+                <p class="font-bold">{{ facultyInfo.name }}</p>
+              </div>
+            </template>
+
+            <div class="w-full">
+              <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                  <tr>
+                    <th scope="col" class="px-6 py-3">Day</th>
+                    <th scope="col" class="px-6 py-3">Start Time</th>
+                    <th scope="col" class="px-6 py-3">End Time</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-if="facultyAvailability.length === 0">
+                    <td colspan="3" class="text-center py-4">No availability data available</td>
+                  </tr>
+                  <tr v-else-if="facultyAvailability.length > 0" v-for="(availability, index) in facultyAvailability" :key="index">
+                    <td class="px-6 py-3">{{ availability.day }}</td>
+                    <td class="px-6 py-3">{{ availability.start_time }}</td>
+                    <td class="px-6 py-3">{{ availability.end_time }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </UCard>
+        </UModal>
+
           <!-- Modal Footer -->
           <div class="flex justify-between">
-            <UButton variant="solid" class="bg-[#DD3A3A] text-white" @click="scheduleModal = false">Close</UButton>
+            <UButton variant="solid" class="bg-[#DD3A3A] text-white" @click="[scheduleModal = false, suggestedSchedule = false]">Close</UButton>
             <UButton variant="solid" class="bg-[#017C35] text-white" @click="scheduleModal = false">Apply</UButton>
           </div>
         </div>
@@ -364,9 +468,11 @@ const paginatedRows = computed(() => {
         <p @click="isOpen = true" class="text-[#017C35] font-medium cursor-pointer text-sm text-center">Show Faculty Availability Time</p>
 
         <UModal v-model="isOpen">
-          <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+          <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }" >
             <template #header>
-              <p class="font-bold">{{ facultyInfo.name }}</p>
+              <div class="flex items-center justify-between">
+                <p class="font-bold">{{ facultyInfo.name }}</p>
+              </div>
             </template>
 
             <div class="w-full">

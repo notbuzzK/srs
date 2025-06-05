@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, toDisplayString } from 'vue'
+const supabase = useNuxtApp().$supabase;
 import { useNuxtApp } from '#app'
-import { useUserUnit } from '@/composables/useUserUnit'
 const toast = useToast()
 
 const { 
@@ -12,36 +11,44 @@ const {
 
 const columns = [{
   key: 'name',
-  label: "Name",
+  label: 'Dean Name',
   sortable: true,
-}, {
+  class: 'w-[45%]' 
+}, { 
+  key: 'unit',
+  label: 'Unit',
+  sortable: true,
+  class: 'w-[45%]'
+}, { 
   key: 'actions',
-  label: ""
-}]
+  label: '',
+  class: 'w-[10%]' }
+]
 
+// Columns for the “Borrowed on” table (schedule lines)
 const approvalColumns = [{
-  key: 'field_name_display',
-  label: "Field",
+  key: 'day',            // *** CHANGED: flat key
+  label: "Day",
   sortable: true,
 }, {
-  key: 'old_value_display',
-  label: "Old Value",
+  key: 'scheduleType',   // *** CHANGED: flat key
+  label: "Schedule Type",
   sortable: true,
 }, {
-  key: 'new_value_display',
-  label: "New Value",
+  key: 'startTime',      // *** CHANGED: flat key
+  label: "Start Time",
   sortable: true,
 }, {
-  key: 'status',
-  label: "Status",
+  key: 'endTime',        // *** CHANGED: flat key
+  label: "End Time",
   sortable: true,
-}, {
-  key: 'actions',
-  label: "Actions",
 }]
 
-const approvals = ref<any[]>([])
-const people = ref<any[]>([])
+const borrowerList = ref<any[]>([])    // list of { name, unit, approval_id } for each dean
+const approvalList = ref<any[]>([])    // raw approvals matching primary unit
+const approvalRows = ref<any[]>([])    // will hold the flat work_time_schedule entries
+const selectedApproval = ref<any>(null) // *** CHANGED: store full approval record
+const requestedMemberInfo = ref<any>(null) // *** CHANGED: store member's name & unit
 const loading = ref(false)
 const isToggled = ref(false)
 
@@ -53,9 +60,9 @@ const pageCount = 7
 // TODO: make row count responsive
 
 const filteredRows = computed(() => {
-  if (!q.value) return people.value 
-  return people.value.filter((person: any) =>
-    Object.values(person).some((value) =>
+  if (!q.value) return borrowerList.value 
+  return borrowerList.value.filter((dean: any) =>
+    Object.values(dean).some((value) =>
       String(value).toLowerCase().includes(q.value.toLowerCase())
     )
   )
@@ -67,237 +74,211 @@ const paginatedRows = computed(() => {
   return filteredRows.value.slice(start, end)
 })
 
-const filteredApprovalsRows = computed(() => {
-  if (!q.value) return approvals.value 
-  return approvals.value.filter((approvals: any) =>
-    Object.values(approvals).some((value) =>
-      String(value).toLowerCase().includes(q.value.toLowerCase())
-    )
-  )
-})
+const { data: { user } } = await supabase.auth.getUser()
 
-const paginatedApprovalsRows = computed(() => {
-  const start = (page.value - 1) * pageCount
-  const end = start + pageCount
-  return filteredApprovalsRows.value.slice(start, end)
-})
-
-const fieldNameMap: Record<string, string> = {
-  primaryCollege: 'Primary College',
-  secondaryCollege: 'Secondary College',
-  primaryDept: 'Primary Department',
-  secondaryDept: 'Secondary Department',
-  acadServices: 'Academic Services',
-}
-
-const userFieldMap: Record<string, string> = {
-  primaryCollege: 'pr_college_id',
-  secondaryCollege: 'sd_college_id',
-  primaryDept: 'pr_department_id',
-  secondaryDept: 'sd_department_id',
-  acadServices: 'academic_service_id',
-}
-
-const mappedApprovalsRows = computed(() => {
-  return paginatedApprovalsRows.value.map(row => {
-    let oldValueDisplay = row.old_value
-    let newValueDisplay = row.new_value
-
-    if (row.field_name === 'primaryCollege' || row.field_name === 'secondaryCollege') {
-      oldValueDisplay = getCollegeName(Number(row.old_value))
-      newValueDisplay = getCollegeName(Number(row.new_value))
-    }
-    if (row.field_name === 'primaryDept' || row.field_name === 'secondaryDept') {
-      oldValueDisplay = getDepartmentName(Number(row.old_value))
-      newValueDisplay = getDepartmentName(Number(row.new_value))
-    }
-    if (row.field_name === 'acadServices') {
-      oldValueDisplay = getAcadServicesName(Number(row.old_value))
-      newValueDisplay = getAcadServicesName(Number(row.new_value))
-    }
-
-    return {
-      ...row,
-      field_name_display: fieldNameMap[row.field_name] || row.field_name, // for display
-      old_value_display: oldValueDisplay,
-      new_value_display: newValueDisplay,
-      // keep original values for DB
-    }
-  })
-})
-
-const { $supabase } = useNuxtApp()
-
-// fetch full userRow to derive unit
+const userid = user?.id
 const userRow = ref<any>(null)
-async function loadUserRow() {
-  const { data: { user } } = await $supabase.auth.getUser()
-  if (!user?.id) return
-  const { data, error } = await $supabase
+
+const deanInfo = ref<any>(null)
+const getBorrowerInfo = async () => {
+  const { data, error } = await supabase
     .from('users')
-    .select('pr_college_id, sd_college_id, pr_department_id, sd_department_id, acadServices_id, name')
-    .eq('user_auth_id', user.id)
-    .single()
+    .select('pr_college_id, pr_acadServices_id, pr_department_id')
+    .eq('user_auth_id', selectedApproval.value.borrowing_dean_id)
+
   if (error) {
-    console.error('Error loading user row:', error.message)
+    console.log('Error fetching user row: ', error.message)
   } else {
-    userRow.value = data
+    deanInfo.value = data[0]
   }
 }
 
-const { unit } = useUserUnit(userRow)
 
-// load child departments under this unit
-const departments = ref<number[]>([])
-async function loadDepartments() {
-  if (!unit.value) {
-    departments.value = []
-    return
-  }
-  if (unit.value.type === 'department') {
-    departments.value = [unit.value.id]
-    return
-  }
-  // college or service
-  const fk = unit.value.type === 'college'
-    ? 'college_id'
-    : 'acadServices_id'
-  const { data, error } = await $supabase
-    .from('departments')
-    .select('department_id')
-    .eq(fk, unit.value.id)
+const getPrimaryUnit = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('pr_college_id, pr_department_id, pr_acadServices_id')
+    .eq('user_auth_id', userid)
+
   if (error) {
-    console.error('Error loading departments:', error.message)
-    departments.value = []
+    console.log('Error fetching user row: ', error.message)
   } else {
-    departments.value = data!.map(d => d.department_id)
+    userRow.value = data[0]
   }
 }
 
-// load all people under this unit (primary or secondary dept)
-async function loadPeople() {
-  loading.value = true
-  let query = $supabase.from('users').select('name, user_auth_id')
+// Fetch all approvals that match this user’s primary unit
+const getAllApprovals = async () => {
+  const conditions: string[] = [];
 
-  if (departments.value.length) {
-    const list = departments.value.join(',')
-    query = query.or(
-      `pr_department_id.in.(${list}),sd_department_id.in.(${list})`
-    )
-  } else if (unit.value) {
-    // no child depts: filter by college or service
-    if (unit.value.type === 'college') {
-      query = query.or(
-        `pr_college_id.eq.${unit.value.id},sd_college_id.eq.${unit.value.id}`
-      )
-    } else if (unit.value.type === 'service') {
-      query = query.eq('acadServices_id', unit.value.id)
-    }
+  // Add conditions for each pr_ column if they are not null
+  if (userRow.value.pr_college_id != null) {
+    conditions.push(`pr_college_id.eq.${userRow.value.pr_college_id}`);
+  }
+  if (userRow.value.pr_acadServices_id != null) {
+    conditions.push(`pr_academicServices_id.eq.${userRow.value.pr_acadServices_id}`);
+  }
+  if (userRow.value.pr_department_id != null) {
+    conditions.push(`pr_department_id.eq.${userRow.value.pr_department_id}`);
   }
 
-  const { data, error } = await query
-  if (error) {
-    console.error('Error fetching people:', error.message)
-    people.value = []
-  } else {
-    people.value = data || []
-  }
-  loading.value = false
-}
+  // Create the query
+  let query = supabase.from('informationApprovals').select('*');
 
-const loadUserApprovals = async (user_id: number) => {
-  const { data, error } = await $supabase
-    .from('informationApprovals')
-    .select('*')
-    .eq('user_id', user_id)
+  // Apply conditions if any exist
+  if (conditions.length > 0) {
+    query = query.or(conditions.join(','));
+  }
+
+  const { data, error } = await query;
+
   if (error) {
-    console.error('Error loading user approvals:', error.message)
+    console.error('Error fetching approvals:', error);
   } else {
-    console.log('User approvals:', data)
-    approvals.value = data
+    approvalList.value = data || [];
   }
 }
 
-const approveRequest = async (id: number, field_name: string, field_value: string, user_id: number) => {
-  const { data, error } = await $supabase
-    .from('informationApprovals')
-    .update({ status: 'Approved' })
-    .eq('id', id)
-  if (error) {
-    console.error('Error approving request:', error.message)
-  } else {
-    console.log('Request approved:', data)
-    loadUserApprovals(user_id)
+// Build the “borrowerList” from approvalList (one row per distinct borrowing_dean_id)
+// *** CHANGED: removed early return so all deans accumulate
+const getBorrowerList = async () => {
+  borrowerList.value = []   // clear before building
+  for (const element of approvalList.value) { 
+    const borrowing_dean_id = element.borrowing_dean_id
+    // Initialize a fresh object for this iteration
+    const deanInfo = { approval_id: element.id } as any
 
-    // Use the correct DB column name
-    const dbField = userFieldMap[field_name] || field_name
-
-    const { data: userData, error: userError } = await $supabase
+    const { data, error } = await supabase
       .from('users')
-      .update({ [dbField]: field_value })
-      .eq('user_auth_id', user_id)
-      .select()
+      .select('pr_college_id, pr_department_id, pr_acadServices_id, name')
+      .eq('user_auth_id', borrowing_dean_id)
+      .single()
 
-    if (userError) {
-      console.error('Error updating user field:', userError.message)
-      toast.add({
-        title: 'Error updating user field',
-        description: 'See console for more info',
-        color: 'red',
-      })
+    if (error) {
+      console.log('Error fetching user row: ', error.message)
+      continue
+    }
+
+    deanInfo.name = data.name
+    // Determine the unit name
+    if (data.pr_department_id != null) {
+      deanInfo.unit = getDepartmentName(data.pr_department_id)
+    } else if (data.pr_college_id != null) {
+      deanInfo.unit = getCollegeName(data.pr_college_id)
     } else {
-      console.log('User field updated:', userData)
-      toast.add({
-        title: 'Request Approved',
-        description: `Field ${fieldNameMap[field_name] || field_name} updated.`,
-        color: 'green',
-      })
+      deanInfo.unit = getAcadServicesName(data.pr_acadServices_id)
+    }
+    // Store the approval_id so we can load schedule when Eye is clicked
+    deanInfo.approval_id = element.id
+
+    // Avoid duplicates: only push if not already in borrowerList
+    if (!borrowerList.value.some((d: any) => d.approval_id === deanInfo.approval_id)) {
+      borrowerList.value.push(deanInfo)
     }
   }
 }
 
-const rejectRequest = async (id: number, user_id: number) => {
-  const { data, error } = await $supabase
-    .from('informationApprovals')
-    .update({ status: 'Rejected' })
-    .eq('id', id)
-  if (error) {
-    console.error('Error rejecting request:', error.message)
+// When you click the “Eye” icon, load that approval’s schedule entries
+// and also fetch the requested member’s name & primary unit for the Details panel
+const loadApprovals = async (approval_id: number) => {
+  // Find the matching approval record
+  const approval = approvalList.value.find((a: any) => a.id === approval_id)
+  if (!approval) {
+    approvalRows.value = []
+    selectedApproval.value = null
+    requestedMemberInfo.value = null
+    return
+  }
+
+  // *** CHANGED: Set approvalRows to the JSONB array directly ***
+  approvalRows.value =  approval.work_time_schedule || []
+
+  // Store the full approval so we can show status/note in Details
+  selectedApproval.value = approval
+
+  // *** CHANGED: Fetch the requested member’s info ***
+  const { data: memberData, error: memberErr } = await supabase
+    .from('users')
+    .select('name, pr_college_id, pr_department_id, pr_acadServices_id')
+    .eq('user_auth_id', approval.user_id)
+    .single()
+
+  if (memberErr || !memberData) {
+    requestedMemberInfo.value = { name: 'Unknown', unit: 'Unknown' }
   } else {
-    console.log('Request rejected:', data)
-    loadUserApprovals(user_id)
+    const info: any = { name: memberData.name }
+    if (memberData.pr_department_id != null) {
+      info.unit = getDepartmentName(memberData.pr_department_id)
+    } else if (memberData.pr_college_id != null) {
+      info.unit = getCollegeName(memberData.pr_college_id)
+    } else {
+      info.unit = getAcadServicesName(memberData.pr_acadServices_id)
+    }
+    requestedMemberInfo.value = info
 
-    toast.add({
-      title: 'Request Rejected',
-      description: `Sent notification to user (not working yet)`,
-      color: 'red',
-    })
+    await getBorrowerInfo()
   }
 }
-
-const approveAll = async () => {
-  for (const approval of approvals.value) {
-    await approveRequest(
-      approval.id,
-      approval.field_name, // this is the original field_name
-      approval.new_value,  // this is the original value (ID)
-      approval.user_id
-    )
-  }
-}
-
 
 onMounted(async () => {
-  await loadUserRow()
-  await loadDepartments()
-  await loadPeople()
+  await getPrimaryUnit()
+  await getAllApprovals()
+  await getBorrowerList()
 })
 
-// re-load when the unit changes or toggle view (optional)
-watch(unit, async () => {
-  await loadDepartments()
-  await loadPeople()
-})
+const onApproved = async () => {
+  const { data: approvalData, error: approvalErr } = await supabase
+    .from('informationApprovals')
+    .update({
+      approval_note: selectedApproval.value.approval_note,
+      approval_status: 'Approved'
+    })
+    .eq('id', selectedApproval.value.id)
+    .select()
+
+  if (approvalErr) {
+    console.error('Error updating approval:', approvalErr)
+    return
+  } 
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      sd_college_id: deanInfo.value.pr_college_id,
+      sd_department_id: deanInfo.value.pr_department_id,
+      sd_acadServices_id: deanInfo.value.pr_acadServices_id
+    })
+    .eq('user_auth_id', selectedApproval.value.user_id)
+    .select()
+
+  if (error) {
+    console.error('Error updating user:', error)
+    return
+  }
+
+  toast.add({ title: 'User updated successfully!', color: 'green' })
+  console.log('User updated successfully:', data)
+  await getAllApprovals()
+}
+
+const onRejected = async () => {
+  const { data: approvalData, error: approvalErr } = await supabase
+    .from('informationApprovals')
+    .update({
+      approval_note: selectedApproval.value.approval_note,
+      status: 'Rejected'
+    })
+    .eq('id', selectedApproval.value.id)
+    .select()
+
+  if (approvalErr) {
+    console.error('Error updating approval:', approvalErr)
+    return
+  }
+}
+
+// TODO: figure out why this doesnt work
+
 </script>
 <template>
   <div class="h-[7%]">
@@ -324,7 +305,7 @@ watch(unit, async () => {
     <!-- Schedule Approval-->
     <div v-if="isToggled" class="grid grid-cols-6 h-full gap-4">
       <div class="col-span-2 bg-white rounded-[12px] ml-4 mt-4 mb-4 p-4">
-
+        <h1>h1llo</h1>
       </div>
       <div class="col-span-4 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4">
         <h1>h1llo</h1>
@@ -332,29 +313,44 @@ watch(unit, async () => {
     </div>
 
     <!-- Information Approval-->
-    <div v-if="!isToggled" class="grid grid-cols-6 h-full gap-4">
+    <div v-if="!isToggled" class="grid grid-cols-7 h-full gap-4">
+
+      <!-- LEFT: Requestor -->
       <div class="col-span-2 bg-white rounded-[12px] ml-4 mt-4 mb-4 p-4">
         <div>
           <p class="text-[#017C35] font-bold">Requestor</p>
         </div>
         <UTable :rows="paginatedRows" :columns="columns">
           <template #actions-data="{ row }">
-            <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35]" @click="loadUserApprovals(row.user_auth_id)" />
+            <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35]"  @click="loadApprovals(row.approval_id)"  />
           </template>
         </UTable>
       </div>
-      <div class="col-span-4 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4">
-        <div class="flex flex-col justify-between h-full">
 
-          <p class="text-[#017C35] font-bold">Information Approval</p>
+      <!-- MIDDLE: Work Time Schedule List -->
+      <div class="col-span-3 bg-white rounded-[12px] mr-2 mt-4 mb-4 p-4">
+        <div class="flex flex-col h-full">
+
+          <div class="">
+            <p class="text-[#017C35] font-bold">Borrowed on</p>
+          </div>
           
-          <div class=" h-[80%]">
-            <UTable :rows="mappedApprovalsRows" :columns="approvalColumns">
+          <div class=" h-full">
+            <UTable :rows="approvalRows" :columns="approvalColumns">
               <template #actions-data="{ row }" >
 
-                <UButton icon="i-gridicons-cross" variant="ghost" class="text-[#DD3A3A]" @click="rejectRequest(row.id, row.user_id)" />
-
-                <UButton icon="i-ic-round-check" variant="ghost" class="text-[#017C35]" @click="approveRequest(row.id, row.field_name, row.new_value, row.user_id)" />
+                <UButton 
+                  icon="i-gridicons-cross" 
+                  variant="ghost" 
+                  class="text-[#DD3A3A]" 
+                  @click="console.log('Reject entry id=', row.id)" 
+                />
+                <UButton 
+                  icon="i-ic-round-check" 
+                  variant="ghost" 
+                  class="text-[#017C35]" 
+                  @click="console.log('Approve entry id=', row.id)" 
+                />
                 
               </template>
             </UTable>
@@ -365,12 +361,74 @@ watch(unit, async () => {
               class="bg-[#017C35] text-white font-bold rounded-lg"
               variant="ghost"
               size="sm"
-              @click="approveAll"
+              @click="console.log('Approve All for parent ID=', selectedApproval?.id)"
             >
               Approve All
             </UButton>
           </div>
+        </div>
+      </div>
 
+      <!-- RIGHT: Details -->
+      <div class="col-span-2 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4">
+        <p class="text-[#017C35] font-bold">Details</p>
+
+        <div>
+          <p class="text-[#017C35] font-bold">Requestor: </p>
+          <div class="flex justify-between">
+            <div>
+              <p>Dean Name:</p>
+              <p>From Unit:</p>
+            </div>
+            <div v-if="selectedApproval" class="text-right">
+              <p>{{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.name || '' }}</p>
+              <p>{{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.unit || '' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-[#017C35] font-bold">Requested: </p>
+          <div class="flex justify-between">
+            <div>
+              <p>Member Name:</p>
+              <p>From Unit:</p>
+            </div>
+            <div v-if="selectedApproval" class="text-right">
+              <p>{{ requestedMemberInfo?.name || '' }}</p>
+              <p>{{ requestedMemberInfo?.unit || '' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between">
+          <p class="text-[#017C35]">Approval Status</p>
+          <p v-if="selectedApproval">{{ selectedApproval?.approval_status || '' }}</p>
+        </div>
+
+        <div>
+          <p class="text-[#017C35] font-bold">Add Approval Note</p>
+          <div v-if="selectedApproval">
+            <UTextarea color="primary" variant="outline" v-model="selectedApproval.approval_note" />
+          </div>
+        </div>
+
+        <div>
+          <UButton 
+            class="text-[#DD3A3A] border border-[#DD3A3A] rounded-lg" 
+            size="sm" 
+            variant="ghost" 
+            @click="onRejected"
+          >
+            Reject
+          </UButton>
+          <UButton 
+            class="text-white font-bold rounded-lg" 
+            size="sm" 
+            @click="onApproved"
+          >
+            Approve
+          </UButton>
         </div>
       </div>
     </div>

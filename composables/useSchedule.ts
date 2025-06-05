@@ -199,7 +199,6 @@ function addEvent() {
   const eventToAdd = {
     id: Date.now(),
     faculty_id: userId.value,
-    department_id: primaryDept.value,
     name: newEvent.value.type,
     type: newEvent.value.type,
     programCode: newEvent.value.programCode,
@@ -334,7 +333,6 @@ async function fetchSchedules(user_auth_id: string) {
     events.value = data.map((item: any) => ({
       id: item.schedule_id,
       faculty_id: item.faculty_id,
-      department_id: item.department_id,
       programCode: item.programCode,
       course: item.course_id,
       name: item.schedule_name,
@@ -360,7 +358,6 @@ async function onSubmit() {
     .filter(event => event.isNew) // Only include new events
     .map(event => ({
       faculty_id: event.faculty_id,
-      department_id: event.department_id,
       programCode: event.programCode,
       course_id: event.course,
       modality: event.modality,

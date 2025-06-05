@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { routerViewLocationKey } from 'vue-router';
 import signup from '~/components/signup.vue';
 const supabase = useNuxtApp().$supabase;
 
@@ -136,6 +135,11 @@ async function loadPeople() {
     const sdDept = u.sd_department_id
     const prSvc = u.pr_acadServices_id
     const sdSvc = u.sd_acadServices_id
+    const prRank = u.pr_rank
+    const prRankValue = u.pr_rankValue
+    const sdRank = u.sd_rank
+    const sdRankValue = u.sd_rankValue
+
 
     // Resolve college logic
     let college = 'None'
@@ -155,6 +159,7 @@ async function loadPeople() {
       department = getDepartmentName(prDept || sdDept)
     }
 
+    // resolve acadServices logic
     let acadServices = 'None'
     if (prSvc && sdSvc && prSvc !== sdSvc) {
       return `${getAcadServicesName(prSvc)}, ${getAcadServicesName(sdSvc)}`
@@ -162,11 +167,20 @@ async function loadPeople() {
       return getAcadServicesName(prSvc || sdSvc)
     }
 
+    // resolve rank logic
+    let rank = 'None'
+    if (sdRank !== null && sdRankValue !== null) {
+      rank = `${prRank} ${prRankValue}, ${sdRank} ${sdRankValue}`
+    } else if (prRank !== null && prRankValue !== null) {
+      rank = `${prRank} ${prRankValue}`
+    }
+
     return {
       ...u,
       college,
       department,
       acadServices,
+      rank
     }
   })
   loading.value = false
@@ -179,6 +193,7 @@ const pageCount = 7
 
 // TODO: find out how to decrease row height
 // TODO: make row count responsive
+// TODO: fix rank display in table
 
 const filteredRows = computed(() => {
   if (!q.value) return people.value 

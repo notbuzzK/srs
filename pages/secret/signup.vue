@@ -16,39 +16,51 @@ const {
   range
 } = useAccountCreationValues()
 
+const {
+  days,
+  eventTypes,
+  otherTimeSlots
+} = useSchedule()
+
 const items = [{
   key: 'account',
   label: 'Basic Information',
   description: ''
 }, {
-  key: 'roles',
-  label: 'Roles & Department',
+  key: 'pr_unit',
+  label: 'Primary Unit',
   description: ''
+}, {
+  key: 'sd_unit',
+  label: 'Secondary Unit',
 }]
 
-
-
 const accountForm = reactive({
-  name: '', 
-  email: '', 
+  name: '',
+  email: '',
   password: '',
   item: '',
   userRole: '',
-  rank: '',
-  rankValue: '',
-})
-const rolesForm = reactive({ 
-  primaryCollege: '',
-  secondaryCollege: '', 
-  primaryDept: '', 
-  secondaryDept: '',
-  acadServices: '', 
   designation: '',
+})
+const primaryForm = reactive({ 
+  primaryCollege: '',
+  pr_acadServices: '', 
+  primaryDept: '',
+  pr_rank: '',
+  pr_rankValue: '', 
+})
+const secondaryForm = reactive({ 
+  secondaryCollege: '', 
+  sd_acadServices: '', 
+  secondaryDept: '',
+  sd_rank: '',
+  sd_rankValue: '' , 
 })
 
 
 async function onSubmit() {
-  console.log('values: ', accountForm, rolesForm);
+  console.log('values: ', accountForm, primaryForm, secondaryForm);
 
   // Sign up the user
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -76,6 +88,11 @@ async function onSubmit() {
   // Use the session's user ID for the next insert
   const user_id = signInData.session?.user?.id;
 
+/*   if (secondaryForm.secondaryCollege === null && secondaryForm.secondaryDept === null && secondaryForm.sd_acadServices === null) {
+    secondaryForm.sd_rank = null
+    secondaryForm.sd_rankValue = null
+  } */
+
   let { data: insertedUser, error: insertError } = await supabase
     .from('users')
     .insert([
@@ -85,14 +102,17 @@ async function onSubmit() {
         email: accountForm.email,
         password: accountForm.password,
         role: accountForm.userRole,
-        pr_college_id: rolesForm.primaryCollege,
-        sd_college_id: rolesForm.secondaryCollege,
-        pr_department_id: rolesForm.primaryDept,
-        sd_department_id: rolesForm.secondaryDept,
-        acadServices_id: rolesForm.acadServices,
+        pr_college_id: primaryForm.primaryCollege,
+        acadServices_id: primaryForm.pr_acadServices,
+        pr_department_id: primaryForm.primaryDept,
+        pr_rank: primaryForm.pr_rank,
+        pr_rankValue: primaryForm.pr_rankValue,
+        sd_college_id: secondaryForm.secondaryCollege,
+        sd_department_id: secondaryForm.secondaryDept,
+        sd_rank: secondaryForm.sd_rank,
+        sd_rankValue: secondaryForm.sd_rankValue,
         status: 'Active',
-        designation: rolesForm.designation,
-        rank: `${accountForm.rank} ${accountForm.rankValue}`,
+        designation: accountForm.designation,
       },
     ])
     .select();
@@ -113,12 +133,17 @@ const resetValues = () => {
   accountForm.item = ''
   accountForm.userRole = ''
 
-  rolesForm.primaryCollege = ''
-  rolesForm.secondaryCollege = ''
-  rolesForm.primaryDept = ''
-  rolesForm.secondaryDept = ''
-  rolesForm.acadServices = ''
-  rolesForm.designation = ''
+  primaryForm.primaryCollege = ''
+  primaryForm.pr_acadServices = ''
+  primaryForm.primaryDept = ''
+  primaryForm.pr_rank = ''
+  primaryForm.pr_rankValue = ''
+  
+  secondaryForm.secondaryCollege = ''
+  secondaryForm.sd_acadServices = ''
+  secondaryForm.secondaryDept = ''
+  secondaryForm.sd_rank = ''
+  secondaryForm.sd_rankValue = ''
 }
 
 const isOpen = ref(false);
@@ -126,6 +151,8 @@ const isOpen = ref(false);
 onMounted(() => {
   resetValues()
 })
+
+// TODO: update to match /components/signup.vue
 
 </script>
 <template>
@@ -144,7 +171,7 @@ onMounted(() => {
               </p>
             </template>
 
-
+<!-- Basic Information -->
             <div v-if="item.key === 'account'" class="space-y-3">
 
               <UFormGroup label="Name" name="name" required>
@@ -161,30 +188,6 @@ onMounted(() => {
                 <div class="w-1/2">
                   <UFormGroup label="Password" name="password" required>
                     <UInput v-model="accountForm.password" type="password" />
-                  </UFormGroup>
-                </div>
-              </div>
-
-              
-              <div class="flex flex-row gap-2">
-                <div class="w-1/2">
-                  <UFormGroup label="Rank" name="rank" required>
-                    <USelect
-                      v-model="accountForm.rank"
-                      :options="ranks"
-                      optionAttribute="name"
-                      required
-                    />
-                  </UFormGroup>
-                </div>
-                <div class="w-1/2">
-                  <UFormGroup label="Rank Value" name="rank value" required>
-                    <USelect
-                      v-model="accountForm.rankValue"
-                      :options="range"
-                      optionAttribute="name"
-                      required
-                    />
                   </UFormGroup>
                 </div>
               </div>
@@ -207,25 +210,23 @@ onMounted(() => {
                 />
               </UFormGroup>
 
-            </div>
-
-            
-            <div v-else-if="item.key === 'roles'" class="space-y-3">
-
-              <UFormGroup label="Primary College" name="college" required>
+              <UFormGroup label="Designation" name="designation" required>
                 <USelect
-                  v-model="rolesForm.primaryCollege"
-                  :options="collegeOptions"
-                  valueAttribute="value"
+                  v-model="accountForm.designation"
+                  :options="designationOptions"
                   optionAttribute="name"
-                  required
-                  label="name"
+                  required 
                 />
               </UFormGroup>
 
-              <UFormGroup label="Secondary College" name="college" required>
+            </div>
+
+            <!-- Primary Unit -->
+            <div v-else-if="item.key === 'pr_unit'" class="space-y-3">
+
+              <UFormGroup label="Primary College" name="college" required>
                 <USelect
-                  v-model="rolesForm.secondaryCollege"
+                  v-model="primaryForm.primaryCollege"
                   :options="collegeOptions"
                   valueAttribute="value"
                   optionAttribute="name"
@@ -236,16 +237,16 @@ onMounted(() => {
 
               <UFormGroup label="Academic Services" name="acadServices" required>
                 <USelect
-                  v-model="rolesForm.acadServices"
+                  v-model="primaryForm.pr_acadServices"
                   :options="acadServicesOptions"
                   optionAttribute="name"
-                  required 
+                  required
                 />
               </UFormGroup>
               
               <UFormGroup label="Primary Department" name="primaryDept" required>
                 <USelect
-                  v-model="rolesForm.primaryDept"
+                  v-model="primaryForm.primaryDept"
                   :options="departmentOptions"
                   valueAttribute="value"
                   optionAttribute="name"
@@ -253,9 +254,56 @@ onMounted(() => {
                 />
               </UFormGroup>
 
+              <div class="flex flex-row gap-2">
+                <div class="w-1/2">
+                  <UFormGroup label="Rank" name="rank" required>
+                    <USelect
+                      v-model="primaryForm.pr_rank"
+                      :options="ranks"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+                <div class="w-1/2">
+                  <UFormGroup label="Rank Value" name="rank value" required>
+                    <USelect
+                      v-model="primaryForm.pr_rankValue"
+                      :options="range"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Secondary Unit -->
+            <div v-else-if="item.key === 'sd_unit'" class="space-y-3">
+              <UFormGroup label="Secondary College" name="college" required>
+                <USelect
+                  v-model="secondaryForm.secondaryCollege"
+                  :options="collegeOptions"
+                  valueAttribute="value"
+                  optionAttribute="name"
+                  required
+                  label="name"
+                />
+              </UFormGroup>
+
+              <UFormGroup label="Academic Services" name="acadServices" required>
+                <USelect
+                  v-model="secondaryForm.sd_acadServices"
+                  :options="acadServicesOptions"
+                  optionAttribute="name"
+                  required
+                />
+              </UFormGroup>
+
               <UFormGroup label="Secondary Department" name="secondaryDept" required>
                 <USelect
-                  v-model="rolesForm.secondaryDept"
+                  v-model="secondaryForm.secondaryDept"
                   :options="departmentOptions"
                   valueAttribute="value"
                   optionAttribute="name"
@@ -263,16 +311,28 @@ onMounted(() => {
                 />
               </UFormGroup>
 
-              
-
-              <UFormGroup label="Designation" name="designation" required>
-                <USelect
-                  v-model="rolesForm.designation"
-                  :options="designationOptions"
-                  optionAttribute="name"
-                  required 
-                />
-              </UFormGroup>
+              <div class="flex flex-row gap-2">
+                <div class="w-1/2">
+                  <UFormGroup label="Rank" name="rank" required>
+                    <USelect
+                      v-model="secondaryForm.sd_rank"
+                      :options="ranks"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+                <div class="w-1/2">
+                  <UFormGroup label="Rank Value" name="rank value" required>
+                    <USelect
+                      v-model="secondaryForm.sd_rankValue"
+                      :options="range"
+                      optionAttribute="name"
+                      required
+                    />
+                  </UFormGroup>
+                </div>
+              </div>
 
             </div>
 
@@ -280,7 +340,7 @@ onMounted(() => {
               <UButton type="button" class="mr-2 bg-[#B20000]" @click="[router.back(), isOpen = false]">
                 Cancel
               </UButton>
-              <UButton type="submit" color="primary" v-if="item.key === 'roles'">
+              <UButton type="submit" color="primary" v-if="item.key === 'sd_unit'">
                 Sign up Faculty
               </UButton>
             </template>

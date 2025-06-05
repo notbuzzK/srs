@@ -5,7 +5,7 @@ export const userRoles = {
   CEEA: ["dashboard", "schedule", "summary",  "departmentalSummary"],
   "College Admin": ["dashboard", "schedule", "summary", "manageMemebers", "statistics"],
   "System Admin": ["statistics", "manageMembers"],
-  "Higher Ups": ["dashboard", "schedule", "summary", "departmentalSummary", "approvals"],
+  "Higher Ups": ["dashboard", "schedule", "summary", "manageMembers", "departmentalSummary", "approvals"],
 };
 
 // Default route for each role

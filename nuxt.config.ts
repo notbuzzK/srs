@@ -20,7 +20,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Server-side only: this will not be exposed to the client
-    supabaseKey: process.env.NUXT_SUPABASE_KEY,
+    supabaseServiceKey: process.env.NUXT_SUPABASE_SERVICE_KEY,
     public: {
       // This key will be accessible on both server and client
       supabaseUrl: process.env.NUXT_SUPABASE_URL,

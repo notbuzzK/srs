@@ -12,8 +12,17 @@ const {
   acadServicesOptions,
   facultyItems,
   ranks,
-  range
+  range,
+  getCollegeName,
+  getDepartmentName,
+  getAcadServicesName
 } = useAccountCreationValues()
+
+const {
+  days,
+  eventTypes,
+  otherTimeSlots
+} = useSchedule()
 
 const items = [{
   key: 'account',
@@ -95,10 +104,12 @@ async function onSubmit() {
         pr_college_id: primaryForm.primaryCollege,
         acadServices_id: primaryForm.pr_acadServices,
         pr_department_id: primaryForm.primaryDept,
-        pr_rank: `${primaryForm.pr_rank} ${primaryForm.pr_rankValue}`,
+        pr_rank: primaryForm.pr_rank,
+        pr_rankValue: primaryForm.pr_rankValue,
         sd_college_id: secondaryForm.secondaryCollege,
         sd_department_id: secondaryForm.secondaryDept,
-        sd_rank: `${secondaryForm.sd_rank} ${secondaryForm.sd_rankValue}`,
+        sd_rank: secondaryForm.sd_rank,
+        sd_rankValue: secondaryForm.sd_rankValue,
         status: 'Active',
         designation: accountForm.designation,
       },
@@ -246,7 +257,6 @@ async function loadMembers(
   historyParent.value = parent
 }
 
-
 // handler for “View Members” in level 2
 // Handler when clicking “👁 View Members” in dept level
 function onViewMembers(dept: { id: number; type: string }) {
@@ -273,8 +283,109 @@ onMounted(() => {
   loadUnits()
 })
 
-</script>
+const { data: { user } } = await supabase.auth.getUser()
+const borrowerForm = ref(false)
+const facultyInfo = ref<any>(null)
+const scheduleForm = ref(false)
+const schedule = ref({
+  day: '',
+  scheduleType: '',
+  startTime: '',
+  endTime: ''
+})
+const scheduleList = ref<any>([])
+const getFacultyInfo = async (id: string) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('user_auth_id', id)
+    .single()
 
+  if (error) {
+    console.error('Error fetching faculty info:', error.message)
+  } else {
+    facultyInfo.value = data
+  }
+}
+
+
+const addEvent = () => {
+  if (!schedule.value.scheduleType) {
+    toast.add({ title: 'Please select a schedule type', color: 'red' })
+    return
+  }
+
+  const eventToAdd = {
+    id: Date.now(), // unique ID for the event
+    day: schedule.value.day,
+    scheduleType: schedule.value.scheduleType,
+    startTime: schedule.value.startTime,
+    endTime: schedule.value.endTime,
+  }
+
+  scheduleList.value.push(eventToAdd)
+  toast.add({ title: 'Schedule added successfully', color: 'green' })
+
+  // Close the modal
+  scheduleForm.value = false
+
+  // Reset the schedule form
+  schedule.value = {
+    day: '',
+    scheduleType: '',
+    startTime: '',
+    endTime: ''
+  }
+}
+
+const resetSchedule = () => {
+  scheduleList.value = []
+  schedule.value = {
+    day: '',
+    scheduleType: '',
+    startTime: '',
+    endTime: ''
+  }
+}
+
+const onSubmitBorrow = async () => {
+  if (!facultyInfo.value) {
+    toast.add({ title: 'No faculty info available', color: 'red' })
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('informationApprovals')
+    .upsert({
+      user_id: facultyInfo.value.user_auth_id,
+      pr_college_id: facultyInfo.value.pr_college_id,
+      pr_academicServices_id: facultyInfo.value.pr_acadServices_id,
+      pr_department_id: facultyInfo.value.pr_department_id,
+      borrowing_dean_id: user?.id,
+      work_time_schedule: scheduleList.value,
+      approval_status: 'Pending',
+    })
+    .select()
+
+  if (error) {
+    console.error('Error submitting borrow request:', error.message)
+    toast.add({ title: 'Error submitting borrow request', color: 'red' })
+    return
+  } else {
+    console.log('Borrow request submitted successfully:', data)
+    toast.add({ title: 'Borrow request submitted successfully', color: 'green' })
+  }
+
+  // Reset the form and close the modal
+  borrowerForm.value = false
+  resetSchedule()
+  facultyInfo.value = null
+  scheduleForm.value = false
+}
+
+// TODO: finalize UI
+
+</script>
 <template>
   <div class="flex items-center justify-center">
     <UButton @click="[isOpen = true, resetValues()]" variant="ghost" class="text-sm  font-medium  cursor-pointer text-[#017C35]" >Add Members</UButton>
@@ -461,49 +572,195 @@ onMounted(() => {
                 This tab is for borrowing members from other units.
               </p> -->
 
-             <UTable :columns="columns" :rows="rows">
-              <!-- Name column -->
-              <template #cell-name="{ row }">
-                {{ row.name }}
-              </template>
+              <UTable :columns="columns" :rows="rows">
+                <!-- Name column -->
+                <template #cell-data="{ row }">
+                  {{ row.name }}
+                </template>
 
-              <!-- Actions column -->
-              <template #actions-data="{ row }">
-                <!-- Level 1: show Departments or immediate Members -->
-                <button
-                  v-if="viewLevel === 1"
-                  @click="onExpandUnit(row)"
-                  class="px-2 py-1 bg-green-500 text-white rounded"
-                >
-                  ▶ Departments
-                </button>
+                <!-- Actions column -->
+                <template #actions-data="{ row }">
+                  <!-- Level 1: show Departments or immediate Members -->
+                  <button
+                    v-if="viewLevel === 1"
+                    @click="onExpandUnit(row)"
+                    class="px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    ▶ Departments
+                  </button>
 
-                <!-- Level 2: show View Members -->
-                <button
-                  v-if="viewLevel === 2"
-                  @click="onViewMembers(row)"
-                  class="px-2 py-1 bg-blue-500 text-white rounded"
-                >
-                  👁 View Members
-                </button>
+                  <!-- Level 2: show View Members -->
+                  <button
+                    v-if="viewLevel === 2"
+                    @click="onViewMembers(row)"
+                    class="px-2 py-1 bg-blue-500 text-white rounded"
+                  >
+                    👁 View Members
+                  </button>
 
-                <!-- Level 3: show Borrow -->
-                <button
-                  type="button"
-                  v-if="viewLevel === 3"
-                  @click="() => console.log('Borrowing member:', row.name)"
-                  class="px-2 py-1 bg-yellow-500 text-white rounded"
-                >
-                  Borrow
-                </button>
-              </template>
-            </UTable>
+                  <!-- Level 3: show Borrow -->
+                  <button
+                    type="button"
+                    v-if="viewLevel === 3"
+                    @click="() => [ getFacultyInfo(row.id), borrowerForm = true, console.log(historyParent), console.log(facultyInfo) ]"
+                    class="px-2 py-1 bg-yellow-500 text-white rounded"
+                  >
+                    Borrow
+                  </button>
+                </template>
+              </UTable>
 
-            <!-- Back button when deeper than level 1 -->
-            <button v-if="viewLevel > 1" @click="goBack" class="mt-4 underline">
-              ← Back
-            </button>
+              <!-- Back button when deeper than level 1 -->
+              <UButton type="button" variant="ghost" v-if="viewLevel > 1" @click="goBack" class="mt-4 underline text-black">
+                ← Back
+              </UButton>
               
+              <UModal v-model="borrowerForm" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-full sm:max-h-4xl' }">
+                <UCard>
+                  <template #header>
+                    <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                      Borrow {{ facultyInfo?.name }}?
+                    </p>
+                  </template>
+
+                  <div class="grid grid-cols-1 grid-rows-3 gap-4">
+                    <div class="col-span-1 row-span-1">
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        You are borrowing this member from: 
+                      </p>
+                      <span>{{ historyParent?.name }}</span>
+       
+                    </div>
+
+                    <div class="col-span-1 row-span-2">
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        With Schedule:</p>
+                        <p @click="scheduleForm = true" class="cursor-pointer text-[#017C35]">Add Schedule</p>
+                      <div class="h-full">
+                        <table class="w-full">
+                          <thead class="bg-gray-300">
+                            <tr class="text-sm text-black dark:text-gray-400 flex  py-2 border-b-2">
+                              <th class="w-[20%] text-center">Day</th>
+                              <th class="w-[20%] text-center">Schedule Type</th>
+                              <th class="w-[20%] text-center">Start Time</th>
+                              <th class="w-[20%] text-center">EndTime</th>
+                              <th class="w-[20%] text-center">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="(event, index) in scheduleList" :key="index" class="flex justify-evenly py-2 border-b">
+                              <td class="w-[20%] text-center">{{ event.day }}</td>
+                              <td class="w-[20%] text-center">{{ event.scheduleType }}</td>
+                              <td class="w-[20%] text-center">{{ event.startTime }}</td>
+                              <td class="w-[20%] text-center">{{ event.endTime }}</td>
+                              <td class="w-[20%] text-center">
+                                <UButton
+                                  type="button"
+                                  variant="ghost"
+                                  class="text-red-500"
+                                  @click="scheduleList.splice(index, 1)"
+                                >
+                                  Remove
+                                </UButton>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <UModal v-model="scheduleForm" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-full sm:max-h-4xl' }">
+                          <UCard>
+                            <template #header>
+                              <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                                Add Schedule
+                              </p>
+                            </template>
+
+                            <div class="flex gap-4">
+                              <div class="w-1/4">
+                                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                                  Day:
+                                </p>
+                                <USelect
+                                  v-model="schedule.day"
+                                  :options="days"
+                                  optionAttribute="name"
+                                  required
+                                />
+                              </div>
+                              <div class="w-1/4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                  Schedule Type:
+                                </p>
+                                <USelect
+                                  v-model="schedule.scheduleType"
+                                  :options="eventTypes"
+                                  optionAttribute="name"
+                                  required
+                                />
+                              </div>
+                              <div class="w-1/4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                  Start Time:
+                                </p>
+                                <USelect
+                                  v-model="schedule.startTime"
+                                  :options="otherTimeSlots"
+                                  optionAttribute="name"
+                                  required
+                                />
+                              </div>
+                              <div class="w-1/4">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                  End Time:
+                                </p>
+                                <USelect
+                                  v-model="schedule.endTime"
+                                  :options="otherTimeSlots"
+                                  optionAttribute="name"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <template #footer>
+                              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[scheduleForm = false]">
+                                Cancel
+                              </UButton>
+                              <UButton type="button" color="primary" @click="[scheduleForm = false, addEvent()]">
+                                Add Schedule
+                              </UButton>
+                            </template>
+                          </UCard>
+                        </UModal>
+                      </div>
+                    </div>
+
+                    <!-- <div class="col-span-2 row-span-1">
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        Please confirm the details below:
+                      </p>
+                      <ul class="list-disc pl-5 space-y-1">
+                        <li>Name: {{ facultyInfo?.name }}</li>
+                        <li>Email: {{ facultyInfo?.email }}</li>
+                        <li>Designation: {{ facultyInfo?.designation }}</li>
+                        <li>Rank: {{ facultyInfo?.pr_rank }}</li>
+                        <li>Status: {{ facultyInfo?.status }}</li>
+                      </ul>
+                    </div> -->
+
+                  </div>
+
+                  <template #footer>
+                    <UButton type="button" class="mr-2 bg-[#B20000]" @click="[borrowerForm = false]">
+                      Cancel
+                    </UButton>
+                    <UButton type="button" color="primary" @click="[borrowerForm = false, onSubmitBorrow()]">
+                      Confirm Borrow
+                    </UButton>
+                  </template>
+                </UCard>
+              </UModal>
+            
             </div>
 
             <template #footer>

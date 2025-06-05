@@ -20,9 +20,6 @@ const props = defineProps<{
   usedIn: string,
 }>()
 
-const { data: { user } } = await supabase.auth.getUser()
-
-
 const items = [{
   key: 'account',
   label: 'Basic Information',
@@ -61,26 +58,6 @@ const secondaryForm = reactive({
   sd_rankValue: '', 
 })
 
-const oldUserdata = reactive({
-  name: '', 
-  email: '', 
-  password: '',
-  item: '',
-  userRole: '',
-  designation: '',
-  primaryCollege: '',
-  pr_acadServices: '', 
-  primaryDept: '', 
-  pr_rank: '',
-  pr_rankValue: '',
-  secondaryCollege: '', 
-  sd_acadServices: '', 
-  secondaryDept: '',
-  sd_rank: '',
-  sd_rankValue: '',
-  status: '',
-})
-
 const getUser = async () => {
   let { data: users, error } = await supabase
     .from('users')
@@ -103,32 +80,14 @@ const getUser = async () => {
     primaryForm.pr_acadServices  = users?.[0].pr_acadServices_id
     primaryForm.primaryDept      = users?.[0].pr_department_id
     primaryForm.pr_rank          = users?.[0].pr_rank
-    primaryForm.pr_rankValue     = users?.[0].pr_rank_value
+    primaryForm.pr_rankValue     = users?.[0].pr_rankValue
     
     secondaryForm.secondaryCollege = users?.[0].sd_college_id
     secondaryForm.sd_acadServices  = users?.[0].sd_acadServices_id
     secondaryForm.secondaryDept    = users?.[0].sd_department_id
     secondaryForm.sd_rank          = users?.[0].sd_rank
-    secondaryForm.sd_rankValue     = users?.[0].sd_rank_value
+    secondaryForm.sd_rankValue     = users?.[0].sd_rankValue
 
-    // set the old user data
-    oldUserdata.name           = users?.[0].name
-    oldUserdata.email          = users?.[0].email
-    oldUserdata.password       = users?.[0].password
-    oldUserdata.item           = users?.[0].item
-    oldUserdata.status         = users?.[0].status
-    oldUserdata.userRole       = users?.[0].role
-    oldUserdata.designation    = users?.[0].designation
-    oldUserdata.primaryCollege   = users?.[0].pr_college_id
-    oldUserdata.pr_acadServices  = users?.[0].pr_acadServices_id
-    oldUserdata.primaryDept      = users?.[0].pr_department_id
-    oldUserdata.pr_rank          = users?.[0].pr_rank
-    oldUserdata.pr_rankValue     = users?.[0].pr_rank_value
-    oldUserdata.secondaryCollege = users?.[0].sd_college_id
-    oldUserdata.sd_acadServices  = users?.[0].sd_acadServices_id
-    oldUserdata.secondaryDept    = users?.[0].sd_department_id
-    oldUserdata.sd_rank          = users?.[0].sd_rank
-    oldUserdata.sd_rankValue     = users?.[0].sd_rank_value
   }
 }
 
@@ -142,8 +101,9 @@ const saveAccountChanges = async () => {
       email: accountForm.email,
       password: accountForm.password,
       item: accountForm.item,
-      role: accountForm.userRole,
       status: accountForm.status,
+      role: accountForm.userRole,
+      designation: accountForm.designation
     })
     .eq('user_auth_id', props.user_auth_id)
     .select();
@@ -157,84 +117,68 @@ const saveAccountChanges = async () => {
   }
 }
 
-/**
- * Compare only the specific role/department fields and return diffs.
- */
-function getChangedRoleFields(oldRoles: Record<string, any>, newRoles: Record<string, any>) {
-  const fields = [
-    'primaryCollege',
-    'secondaryCollege',
-    'primaryDept',
-    'secondaryDept',
-    'acadServices',
-    'designation'
-  ];
-  const changed: { field_name: string, new_value: string }[] = [];
-  for (const key of fields) {
-    // Normalize both sides to string for comparison
-    const oldVal = oldRoles[key] == null ? '' : String(oldRoles[key]);
-    const newVal = newRoles[key] == null ? '' : String(newRoles[key]);
-    if (oldVal !== newVal) {
-      changed.push({
-        field_name: key,
-        new_value: newVal
-      });
+const saveUnitChanges = async () => {
+  if (isDisabled.value) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        pr_college_id: primaryForm.primaryCollege,
+        pr_acadServices_id: primaryForm.pr_acadServices,
+        pr_department_id: primaryForm.primaryDept,
+        sd_college_id: secondaryForm.secondaryCollege,
+        sd_acadServices_id: secondaryForm.sd_acadServices,
+        sd_department_id: secondaryForm.secondaryDept,
+        pr_rank: primaryForm.pr_rank,
+        pr_rankValue: primaryForm.pr_rankValue,
+        sd_rank: secondaryForm.sd_rank,
+        sd_rankValue: secondaryForm.sd_rankValue
+      })
+      .eq('user_auth_id', props.user_auth_id)
+      .select();
+
+    if (error) {
+      console.error('Error updating user:', error.message)
+      toast.add({ title: 'Error updating user', color: 'red' });
+    } else {
+      toast.add({ title: 'User updated successfully!', color: 'green' });
+      console.log('User updated successfully:', data);
     }
-  }
-  return changed;
-}
-
-const submitRoleChanges = async () => {
-  const changedFields = getChangedRoleFields(
-    {
-      primaryCollege: oldUserdata.primaryCollege,
-      secondaryCollege: oldUserdata.secondaryCollege,
-      primaryDept: oldUserdata.primaryDept,
-      secondaryDept: oldUserdata.secondaryDept,
-      acadServices: oldUserdata.acadServices,
-      designation: oldUserdata.designation,
-    },
-    rolesForm
-  );
-
-  if (changedFields.length === 0) {
-    toast.add({ title: 'No changes detected.', color: 'yellow' });
-    return;
-  }
-
-  // Prepare the payload for each changed field
-  const payload = changedFields.map(field => ({
-    user_id: props.user_auth_id,
-    pr_college_id: rolesForm.primaryCollege,
-    sd_college_id: rolesForm.secondaryCollege,
-    academic_service_id: rolesForm.acadServices,
-    pr_department_id: rolesForm.primaryDept,
-    sd_department_id: rolesForm.secondaryDept,
-    field_name: field.field_name,
-    old_value: oldUserdata[field.field_name],
-    new_value: field.new_value,
-    status: 'Pending'
-  }));
-
-  const { data, error } = await supabase
-    .from('informationApprovals')
-    .upsert(payload)
-    .select();
-
-  if (error) {
-    toast.add({ title: 'Error submitting changes', color: 'red' });
-    console.error('Error submitting changes:', error.message);
   } else {
-    toast.add({ title: 'Changes submitted for approval!', color: 'green' });
-    console.log('Changes submitted successfully:', data);
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        pr_rank: primaryForm.pr_rank,
+        pr_rankValue: primaryForm.pr_rankValue,
+        sd_rank: secondaryForm.sd_rank,
+        sd_rankValue: secondaryForm.sd_rankValue,
+      })
+      .eq('user_auth_id', props.user_auth_id)
+      .select();
+
+    if (error) {
+      console.error('Error updating user:', error.message)
+      toast.add({ title: 'Error updating user', color: 'red' });
+    } else {
+      toast.add({ title: 'User updated successfully!', color: 'green' });
+      console.log('User updated successfully:', data);
+    }
   }
 };
 
+const isDisabled = ref(false)
+
 onMounted(() => {
   getUser()
+  if(props.usedIn === 'profile') {
+    isDisabled.value = true
+  } else {
+    isDisabled.value = false
+  }
 })
 
 const isOpen = ref(false);
+
+// TODO: fix this shit
 
 </script>
 
@@ -252,7 +196,7 @@ const isOpen = ref(false);
     <UModal v-model="isOpen">
       <UTabs :items="items" class="w-full">
         <template #item="{ item }">
-          <UCard @submit.prevent="() => submitRoleChanges()">
+          <UCard @submit.prevent="() => saveUnitChanges()">
             <template #header>
               <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
                 {{ item.label }}
@@ -323,6 +267,7 @@ const isOpen = ref(false);
                   optionAttribute="name"
                   required
                   label="name"
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
 
@@ -332,6 +277,7 @@ const isOpen = ref(false);
                   :options="acadServicesOptions"
                   optionAttribute="name"
                   required
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
               
@@ -342,6 +288,7 @@ const isOpen = ref(false);
                   valueAttribute="value"
                   optionAttribute="name"
                   required 
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
 
@@ -371,7 +318,7 @@ const isOpen = ref(false);
             </div>
 
             <!-- Secondary Unit -->
-            <div v-else-if="item.key === 'sd_unit'">
+            <div v-else-if="item.key === 'sd_unit'" class="space-y-3">
               <UFormGroup label="Secondary College" name="college" required>
                 <USelect
                   v-model="secondaryForm.secondaryCollege"
@@ -380,6 +327,7 @@ const isOpen = ref(false);
                   optionAttribute="name"
                   required
                   label="name"
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
 
@@ -389,6 +337,7 @@ const isOpen = ref(false);
                   :options="acadServicesOptions"
                   optionAttribute="name"
                   required
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
 
@@ -399,6 +348,7 @@ const isOpen = ref(false);
                   valueAttribute="value"
                   optionAttribute="name"
                   required
+                  :disabled="isDisabled"
                 />
               </UFormGroup>
 
@@ -431,7 +381,10 @@ const isOpen = ref(false);
               <UButton type="button" class="mr-2 bg-[#B20000]" @click="[, isOpen = false]">
                 Cancel
               </UButton>
-              <UButton type="submit" color="primary" v-if="item.key === 'sd_unit'">
+              <UButton type="button" @click="saveAccountChanges" color="primary" v-if="item.key === 'account'">
+                Save Account Changes
+              </UButton>
+              <UButton type="button" @click="saveUnitChanges" color="primary" v-if="item.key === 'sd_unit' || item.key === 'pr_unit'">
                 Save Changes
               </UButton>
             </template>
