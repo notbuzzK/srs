@@ -78,6 +78,7 @@ const primaryDept = ref('')
 const userId = ref('')
 const acadYear = ref('')
 const acadSem = ref('')
+const semesterType = ref('')
 const events = ref<any[]>([])
 const showModal = ref(false)
 const newEvent = ref({
@@ -237,7 +238,7 @@ function getEvent(day: string, slotIndex: number) {
 
 async function deleteEvent(id: number) {
   const supabase = useNuxtApp().$supabase
-  // events.value = events.value.filter(evt => evt.id !== id)
+  events.value = events.value.filter(evt => evt.id !== id)
   console.log('Deleting event with ID:', id)
 
     
@@ -277,6 +278,353 @@ function getRowSpan(day: string, slotIndex: number) {
   const evt = eventAtSlot(day, slotIndex)
   return evt ? evt.endIndex - evt.startIndex : 1
 }
+
+
+/*
+  hour: number,
+  designation: string,
+  type: keyof typeof typeToKey,
+  isPrimary: boolean,
+  program: 'semester' | 'trimestral' | 'midyear',
+  isFullTime: boolean
+)
+*/
+
+const getConditionsForColors = () => {
+
+}
+
+const fullTimeConfig = {
+  semester: {
+    general:         { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'VC/Dean':       { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'VD/PD/AD':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    Chair:           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'ATF/ASF':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+  },
+  trimestral: {
+    general:         { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'VC/Dean':       { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'VD/PD/AD':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    Chair:           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'ATF/ASF':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+  },
+  midyear: {
+    general:         { teachingLoad: Infinity, overload: Infinity, consultation: Infinity, academicPursuits: Infinity, residency: 20 },
+    // you can repeat per‐role if needed, but midyear is uniform
+  }
+}
+
+const partTimeConfig = {
+  semester: {
+    general:         { teachingLoad: 17, overload: 0,  consultation: 2, academicPursuits: 0, residency: 19 },
+  },
+  trimestral: {
+    general:         { teachingLoad: 11, overload: 0, consultation: 2, academicPursuits: 0, residency: 13 },
+  }
+}
+
+// colors for different hours
+function getHourColor(hour: number, designation: string, type: string, item: string, term: string){
+  console.log('hour:', hour, 'designation:', designation, 'type:', type, 'item:', item, 'term:', term)
+  // top level: check if faculty item is part time, else full time
+  if (item === 'Part-Time') {
+
+    // second level: check semester type
+    if (term === 'Semestral') {
+
+      // if part time, go directly to checking of type
+
+      // fourth level: check type
+      if (type === 'Teaching') {
+        if (hour >= partTimeConfig.semester['general'].teachingLoad) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      } else if (type === 'CH') {
+        if (hour >= partTimeConfig.semester['general'].consultation) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      } else if (type === 'Total Hours') {
+        if (hour >= partTimeConfig.semester['general'].residency) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      }
+    } else if (term === 'Trimestral') {
+      // check type
+      if (type === 'Teaching') {
+        if (hour >= partTimeConfig.trimestral['general'].teachingLoad) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      } else if (type === 'CH') {
+        if (hour >= partTimeConfig.trimestral['general'].consultation) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      } else if (type === 'Total Hours') {
+        if (hour >= partTimeConfig.trimestral['general'].residency) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      }
+    }
+  } else {
+    // second level: check semester type
+    if (term === 'Semestral') {
+
+      // third level: check faculty designation
+      if (designation === 'Vice Chancellor' || designation === 'Academic Dean' || designation === 'TSA Dean') {
+
+        // fourth level: check type
+        if (type === 'Teaching') {
+
+          // fifth level: check hour
+          if (hour <= fullTimeConfig.semester['VC/Dean'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.semester['VC/Dean'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.semester['VC/Dean'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      } else if (designation === 'SHSSHS Director' || designation === 'Director' || designation === 'Vice Dean' || designation === 'Program Director' || designation === 'Assistant Director') {
+
+        // fourth level: check type
+        if (type === 'Teaching') {
+
+          if (hour <= fullTimeConfig.semester['VD/PD/AD'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.semester['VD/PD/AD'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.semester['VD/PD/AD'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      } else if (designation === 'Chair' || designation === 'Vice Chair' || designation === 'Coordinator') {
+
+        // fourth level: check type
+        if (type === 'Teaching') {
+
+          if (hour <= fullTimeConfig.semester['Chair'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.semester['Chair'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.semester['Chair'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+        
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      } else if (designation === 'Academic Teaching Faculty' || designation === 'Academic Service Faculty') {
+        
+        // fourth level: check type
+        if (type === 'Teaching') {
+
+          if (hour <= fullTimeConfig.semester['ATF/ASF'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.semester['ATF/ASF'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.semester['ATF/ASF'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      }
+      
+    } else if (term === 'Trimestral') {
+      if (designation === 'Vice Chancellor' || designation === 'Academic Dean' || designation === 'TSA Dean') {
+        // second level: check type
+        if (type === 'Teaching') {
+
+          // third level: check hour
+          if (hour <= fullTimeConfig.trimestral['VC/Dean'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.trimestral['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.trimestral['VC/Dean'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.trimestral['VC/Dean'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.trimestral['general'].residency + fullTimeConfig.trimestral['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      } else if (designation === 'SHSSHS Director' || designation === 'Director' || designation === 'Vice Dean' || designation === 'Program Director' || designation === 'Assistant Director') {
+
+        // second level: check type
+        if (type === 'Teaching') {
+
+          // third level: check hour
+          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].teachingLoad) {
+            return 'text-orange-600'
+          } else if (hour >= fullTimeConfig.trimestral['general'].teachingLoad) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+          
+        } else if (type === 'CH') {
+          
+          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].consultation) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'ARP') {
+          
+          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].academicPursuits) {
+            return 'text-orange-600'
+          } else {
+            return 'text-black'
+          }
+
+        } else if (type === 'Total Hours') {
+
+          if (hour >= fullTimeConfig.trimestral['general'].residency + fullTimeConfig.trimestral['general'].overload) {
+            return 'text-red-600'
+          } else {
+            return 'text-black'
+          }
+        }
+      }
+
+    } else if (term === 'Midyear') {
+      
+      // second level: check type
+      if (type === 'Total Hours') {
+
+        if (hour >= fullTimeConfig.midyear['general'].residency) {
+          return 'text-red-600'
+        } else {
+          return 'text-black'
+        }
+      }
+    }
+  }
+}
+
+
 
 // Computed total hours (each slot = 0.5 hrs)
 const teachingHours = computed(() =>
@@ -420,8 +768,10 @@ export function useSchedule() {
     userId,
     acadYear,
     acadSem,
+    semesterType,
     fetchSchedules,
     onCourseSearch,
-    modality
+    modality,
+    getHourColor
   }
 }

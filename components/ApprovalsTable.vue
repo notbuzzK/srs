@@ -9,6 +9,12 @@ const {
   getAcadServicesName
 } = useAccountCreationValues()
 
+const {
+  courses,
+  getCourses,
+  getCourseCode,
+} = useSchedule()
+
 const columns = [{
   key: 'name',
   label: 'Dean Name',
@@ -27,19 +33,35 @@ const columns = [{
 
 // Columns for the “Borrowed on” table (schedule lines)
 const approvalColumns = [{
-  key: 'day',            // *** CHANGED: flat key
-  label: "Day",
-  sortable: true,
-}, {
-  key: 'scheduleType',   // *** CHANGED: flat key
+  key: 'scheduleType',
   label: "Schedule Type",
   sortable: true,
 }, {
-  key: 'startTime',      // *** CHANGED: flat key
+  key: 'programCode',
+  label: "Program Code",
+  sortable: true,
+}, {
+  key: 'course_code',
+  label: "Course",
+  sortable: true,
+}, {
+  key: 'room',
+  label: "Room",
+  sortable: true,
+}, {
+  key: 'modality',
+  label: "Modality",
+  sortable: true,
+}, {
+  key: 'day',
+  label: "Day",
+  sortable: true,
+}, {
+  key: 'startTime',
   label: "Start Time",
   sortable: true,
 }, {
-  key: 'endTime',        // *** CHANGED: flat key
+  key: 'endTime',
   label: "End Time",
   sortable: true,
 }]
@@ -83,7 +105,7 @@ const deanInfo = ref<any>(null)
 const getBorrowerInfo = async () => {
   const { data, error } = await supabase
     .from('users')
-    .select('pr_college_id, pr_acadServices_id, pr_department_id')
+    .select('pr_college_id, pr_acadServices_id, pr_department_id, acadYear, acadSem')
     .eq('user_auth_id', selectedApproval.value.borrowing_dean_id)
 
   if (error) {
@@ -193,6 +215,23 @@ const loadApprovals = async (approval_id: number) => {
   // *** CHANGED: Set approvalRows to the JSONB array directly ***
   approvalRows.value =  approval.work_time_schedule || []
 
+  // Fetch course codes for each item in approvalRows
+  approvalRows.value = await Promise.all(
+    approvalRows.value.map(async (row) => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('course_code')
+        .eq('course_id', row.course)
+        .single()
+
+      console.log('data: ', data, 'error: ', error)
+      return {
+        ...row,
+        course_code: error ? null : data?.course_code ?? null
+      }
+    })
+  )
+
   // Store the full approval so we can show status/note in Details
   selectedApproval.value = approval
 
@@ -224,9 +263,37 @@ onMounted(async () => {
   await getPrimaryUnit()
   await getAllApprovals()
   await getBorrowerList()
+  await getCourses()
 })
 
 const onApproved = async () => {
+  // loops over approvalRows and inserts each entry into facultySchedules table along with user info from selectedApproval
+  for (const entry of approvalRows.value) {
+    const { data, error } = await supabase
+      .from('facultySchedules')
+      .upsert({
+        faculty_id: selectedApproval.value.user_id,
+        course_id: entry.course,
+        programCode: entry.course_code,
+        day: entry.day,
+        schedule_type: entry.scheduleType,
+        start_time: entry.startTime,
+        end_time: entry.endTime,
+        room: entry.room,
+        modality: entry.modality,
+        acadYear: deanInfo.value.acadYear,
+        acadSem: deanInfo.value.acadSem
+      })
+      .select()
+
+    if (error) {
+      console.error('Error inserting schedule entry:', error)
+      return
+    } else {
+      console.log('Schedule entry inserted successfully:', data)
+    }
+  }
+
   const { data: approvalData, error: approvalErr } = await supabase
     .from('informationApprovals')
     .update({
@@ -241,6 +308,7 @@ const onApproved = async () => {
     return
   } 
 
+  // sets borrowed user's secondary unit to the dean's primary unit
   const { data, error } = await supabase
     .from('users')
     .update({
@@ -256,8 +324,7 @@ const onApproved = async () => {
     return
   }
 
-  toast.add({ title: 'User updated successfully!', color: 'green' })
-  console.log('User updated successfully:', data)
+  toast.add({ title: 'Faculty borrow request approved!', color: 'green' })
   await getAllApprovals()
 }
 
@@ -370,7 +437,7 @@ const onRejected = async () => {
       </div>
 
       <!-- RIGHT: Details -->
-      <div class="col-span-2 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4">
+      <div class="col-span-2 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4 flex flex-col justify-between">
         <p class="text-[#017C35] font-bold">Details</p>
 
         <div>

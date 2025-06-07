@@ -21,7 +21,12 @@ const {
 const {
   days,
   eventTypes,
-  otherTimeSlots
+  otherTimeSlots,
+  courses,
+  onCourseSearch,
+  modality,
+  getCourses,
+  getCourseCode,
 } = useSchedule()
 
 const items = [{
@@ -288,8 +293,12 @@ const borrowerForm = ref(false)
 const facultyInfo = ref<any>(null)
 const scheduleForm = ref(false)
 const schedule = ref({
-  day: '',
   scheduleType: '',
+  programCode: 'TBA',
+  course: '',
+  room: 'TBA',
+  modality: '',
+  day: '',
   startTime: '',
   endTime: ''
 })
@@ -308,17 +317,28 @@ const getFacultyInfo = async (id: string) => {
   }
 }
 
-
 const addEvent = () => {
   if (!schedule.value.scheduleType) {
     toast.add({ title: 'Please select a schedule type', color: 'red' })
     return
   }
 
+  const startIndex = otherTimeSlots.indexOf(schedule.value.startTime);
+  const rawEndIndex = otherTimeSlots.indexOf(schedule.value.endTime);
+
+  if (rawEndIndex <= startIndex) {
+    toast.add({ title: 'End time must be later than start time', color: 'red' })
+    return;
+  }
+
   const eventToAdd = {
     id: Date.now(), // unique ID for the event
-    day: schedule.value.day,
     scheduleType: schedule.value.scheduleType,
+    programCode: schedule.value.programCode,
+    course: schedule.value.course,
+    room: schedule.value.room,
+    modality: schedule.value.modality,
+    day: schedule.value.day,
     startTime: schedule.value.startTime,
     endTime: schedule.value.endTime,
   }
@@ -331,20 +351,28 @@ const addEvent = () => {
 
   // Reset the schedule form
   schedule.value = {
-    day: '',
-    scheduleType: '',
-    startTime: '',
-    endTime: ''
+  scheduleType: '',
+  programCode: '',
+  course: '',
+  room: '',
+  modality: '',
+  day: '',
+  startTime: '',
+  endTime: ''
   }
 }
 
 const resetSchedule = () => {
   scheduleList.value = []
   schedule.value = {
-    day: '',
-    scheduleType: '',
-    startTime: '',
-    endTime: ''
+  scheduleType: '',
+  programCode: 'TBA',
+  course: '',
+  room: 'TBA',
+  modality: '',
+  day: '',
+  startTime: '',
+  endTime: '',
   }
 }
 
@@ -382,6 +410,10 @@ const onSubmitBorrow = async () => {
   facultyInfo.value = null
   scheduleForm.value = false
 }
+
+onMounted(async () => {
+  await getCourses()
+})
 
 // TODO: finalize UI
 
@@ -615,7 +647,7 @@ const onSubmitBorrow = async () => {
                 ← Back
               </UButton>
               
-              <UModal v-model="borrowerForm" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-full sm:max-h-4xl' }">
+              <UModal v-model="borrowerForm" :ui="{ width: 'w-full sm:max-w-4xl', height: 'h-full sm:max-h-4xl' }">
                 <UCard>
                   <template #header>
                     <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
@@ -640,20 +672,28 @@ const onSubmitBorrow = async () => {
                         <table class="w-full">
                           <thead class="bg-gray-300">
                             <tr class="text-sm text-black dark:text-gray-400 flex  py-2 border-b-2">
-                              <th class="w-[20%] text-center">Day</th>
-                              <th class="w-[20%] text-center">Schedule Type</th>
-                              <th class="w-[20%] text-center">Start Time</th>
-                              <th class="w-[20%] text-center">EndTime</th>
-                              <th class="w-[20%] text-center">Actions</th>
+                              <th class="w-[12.5%] text-center">Schedule Type</th>
+                              <th class="w-[12.5%] text-center">Program Code</th>
+                              <th class="w-[12.5%] text-center">Course</th>
+                              <th class="w-[12.5%] text-center">Room</th>
+                              <th class="w-[12.5%] text-center">Modality</th>
+                              <th class="w-[12.5%] text-center">Day</th>
+                              <th class="w-[12.5%] text-center">Start Time</th>
+                              <th class="w-[12.5%] text-center">EndTime</th>
+                              <th class="w-[12.5%] text-center">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             <tr v-for="(event, index) in scheduleList" :key="index" class="flex justify-evenly py-2 border-b">
-                              <td class="w-[20%] text-center">{{ event.day }}</td>
-                              <td class="w-[20%] text-center">{{ event.scheduleType }}</td>
-                              <td class="w-[20%] text-center">{{ event.startTime }}</td>
-                              <td class="w-[20%] text-center">{{ event.endTime }}</td>
-                              <td class="w-[20%] text-center">
+                              <td class="w-[12.5%] text-center">{{ event.scheduleType }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.programCode }}</td>
+                              <td class="w-[12.5%] text-center">{{ getCourseCode(event.course) }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.room }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.modality }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.day }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.startTime }}</td>
+                              <td class="w-[12.5%] text-center">{{ event.endTime }}</td>
+                              <td class="w-[12.5%] text-center">
                                 <UButton
                                   type="button"
                                   variant="ghost"
@@ -667,7 +707,7 @@ const onSubmitBorrow = async () => {
                           </tbody>
                         </table>
 
-                        <UModal v-model="scheduleForm" :ui="{ width: 'w-full sm:max-w-3xl', height: 'h-full sm:max-h-4xl' }">
+                        <UModal v-model="scheduleForm" :ui="{ width: 'w-full sm:max-w-2xl', height: 'h-full sm:max-h-4xl' }">
                           <UCard>
                             <template #header>
                               <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
@@ -675,50 +715,84 @@ const onSubmitBorrow = async () => {
                               </p>
                             </template>
 
-                            <div class="flex gap-4">
-                              <div class="w-1/4">
-                                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                                  Day:
-                                </p>
-                                <USelect
-                                  v-model="schedule.day"
-                                  :options="days"
-                                  optionAttribute="name"
-                                  required
-                                />
-                              </div>
-                              <div class="w-1/4">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                  Schedule Type:
-                                </p>
+
+                            <div class="flex flex-col gap-4">
+                              <!-- Event Type (no name) -->
+                              <div>
+                                <label class="block mb-1 font-semibold">Schedule Type</label>
                                 <USelect
                                   v-model="schedule.scheduleType"
                                   :options="eventTypes"
-                                  optionAttribute="name"
-                                  required
+                                  placeholder="Select Type"
+                                  class="w-full"
                                 />
                               </div>
-                              <div class="w-1/4">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                  Start Time:
-                                </p>
+
+                              <!-- Course -->
+                              <div class="flex gap-4">
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">Program Code</label>
+                                  <UInput v-model="schedule.programCode" placeholder="TBA" class="w-full" />
+                                </div>
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">Course</label>
+                                  <UInputMenu
+                                    v-model="schedule.course"
+                                    :options="courses"
+                                    optionAttribute="name"
+                                    valueAttribute="value"
+                                    placeholder="Start typing course…"
+                                    :filterable="true"
+                                    :onFilter="onCourseSearch" 
+                                    class="w-full"
+                                  />
+                                </div>
+                              </div>
+
+                              <!-- Room & Modality-->
+                              <div class="flex gap-4">
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">Room</label>
+                                  <UInput v-model="schedule.room" placeholder="TBA" class="w-full" />
+                                </div>
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">Modality</label>
+                                  <USelect v-model="schedule.modality" :options="modality" class="w-full" />
+                                </div>
+                              </div>
+
+                              <!-- Day -->
+                              <div>
+                                <label class="block mb-1 font-semibold">Day</label>
                                 <USelect
-                                  v-model="schedule.startTime"
-                                  :options="otherTimeSlots"
-                                  optionAttribute="name"
-                                  required
+                                  v-model="schedule.day"
+                                  :options="days"
+                                  placeholder="Select Day"
+                                  class="w-full"
                                 />
                               </div>
-                              <div class="w-1/4">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                  End Time:
-                                </p>
-                                <USelect
-                                  v-model="schedule.endTime"
-                                  :options="otherTimeSlots"
-                                  optionAttribute="name"
-                                  required
-                                />
+
+                              <div class="flex gap-4">
+                                <!-- Start Time -->
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">Start Time</label>
+                                  <USelect
+                                    v-model="schedule.startTime"
+                                    :options="otherTimeSlots"
+                                    placeholder="Select Start Time"
+                                    class="w-full"
+                                  />
+                                </div>
+                                <!-- End Time -->
+                                <div class="w-1/2">
+                                  <label class="block mb-1 font-semibold">End Time</label>
+                                  <USelect
+                                    v-model="schedule.endTime"
+                                    :options="otherTimeSlots"
+                                    placeholder="Select End Time"
+                                    class="w-full"
+                                  />
+                                </div>
                               </div>
                             </div>
 

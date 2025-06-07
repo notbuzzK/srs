@@ -16,7 +16,9 @@ const {
   chHours,
   totalHours,
   acadYear,
-  acadSem
+  acadSem,
+  getHourColor,
+  semesterType
 } = useSchedule()
 
 const {
@@ -128,6 +130,7 @@ async function loadMembersUnderScheduler() {
 onMounted(async () => {
   await getCurrectAcadYear()
   await getCurrentTerm()
+  await getCurrentSemesterType()
   await loadUserRow()
   await loadChildDeptIds()
   await loadMembersUnderScheduler()
@@ -162,6 +165,19 @@ const getCurrentTerm = async () => {
     console.error('Error fetching current term:', error.message)
   } else {
     acadSem.value = data[0].acadSem
+  }
+}
+
+const getCurrentSemesterType = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('semester_type')
+    .eq('user_auth_id', userId)
+
+  if (error) {
+    console.log('Error fetching current semester type:', error.message)
+  } else {
+    semesterType.value = data[0].semester_type
   }
 }
 
@@ -425,11 +441,11 @@ const paginatedRows = computed(() => {
           </div>
           
           <div class="text-right">
-            <p class="font-bold">{{ totalHours }} hrs</p>
-            <p>{{ teachingHours }} hrs</p>
+            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">{{ totalHours }} hrs</p>
+            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
             <p>{{ awHours }} hrs</p>
-            <p>{{ arpHours }} hrs</p>
-            <p>{{ chHours }} hrs</p>
+            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
+            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
           </div>
         </div>
       </div>

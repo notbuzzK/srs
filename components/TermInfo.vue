@@ -13,6 +13,12 @@ const semesters = [
   { label: 'Midyear', value: 'Midyear'},
 ]
 
+const semesterType = [
+  { label: 'Semestral', value: 'Semestral'},
+  { label: 'Trimestral', value: 'Trimestral'},
+  { label: 'Midyear', value: 'Midyear'},
+]
+
 // fetch the full userRow so we know their pr_/sd_/acadServices_ids
 const userRow = ref<any>(null)
 async function loadUserRow() {
@@ -31,7 +37,7 @@ const { unit } = useUserUnit(userRow)
 console.log('unit in TermInfo.vue:', unit.value)
 
 // reactive acadInfo
-const acadInfo = ref({ academicYear: '', term: '' })
+const acadInfo = ref({ academicYear: '', term: '', semesterType: '' })
 
 // helper: get all dept-IDs under a unit (for college/service)
 async function getChildDeptIds(): Promise<number[]> {
@@ -56,7 +62,7 @@ async function getChildDeptIds(): Promise<number[]> {
 async function loadCurrent() {
   const { data, error } = await supabase
     .from('users')
-    .select('acadYear, acadSem')
+    .select('acadYear, acadSem, semester_type')
     .eq('user_auth_id', userAuthId)
     .single()
   if (!error && data) {
@@ -72,7 +78,7 @@ onMounted(loadCurrent)
 // Moves every row from `facultySchedules` → `historicalSchedules`
 // ───────────────────────────────────────────────────────────────────────────
 async function archiveSchedules() {
-  // 1) fetch all rows from facultySchedules
+ /*  // 1) fetch all rows from facultySchedules
   const { data: schedData, error: fetchErr } = await supabase
     .from('facultySchedules')
     .select('*')
@@ -107,7 +113,7 @@ async function archiveSchedules() {
     console.error('Error deleting from facultySchedules:', deleteErr.message)
     toast.add({ title: 'Failed to clear old schedules', color: 'red' })
     return false
-  }
+  } */
 
   return true
 }
@@ -135,7 +141,8 @@ const onSubmit = async () => {
     .from('users')
     .update({
       acadYear: acadInfo.value.academicYear,
-      acadSem: acadInfo.value.term
+      acadSem: acadInfo.value.term,
+      semester_type: acadInfo.value.semesterType
     })
 
   if (unit.value?.type === 'department') {
@@ -185,6 +192,10 @@ const isOpen = ref(false)
       <div class="flex flex-row justify-between gap-4">
         <h1>Select Term</h1>
         <USelect v-model="acadInfo.term" class="mt-1 w-[50%]" :options="semesters"/>
+      </div>
+      <div class="flex flex-row justify-between gap-4">
+        <h1>Select Semester Type</h1>
+        <USelect v-model="acadInfo.semesterType" class="mt-1 w-[50%]" :options="semesterType"/>
       </div>
     </div>
     <div>

@@ -41,7 +41,7 @@ function handleRoute(route: string){
 
       </div>
 
-        <div  class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-8 grid-rows-7">
+        <div  class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-8 grid-rows-8">
 
           <div class="col-span-5 row-span-2 bg-white m-4 mb-2 mr-2 rounded-[12px] p-4">
 
@@ -84,11 +84,11 @@ function handleRoute(route: string){
           <h1 class="text-[#017C35] font-bold text-xl">Track Summary Approval</h1>
         </div>
         
-        <div class="col-span-5 row-span-5 bg-white m-4 mt-2 mr-2 rounded-[12px] p-4">
+        <div class="col-span-5 row-span-6 bg-white m-4 mt-2 mr-2 rounded-[12px] p-4">
             <h1 class="text-[#017C35] font-bold text-xl">SUMMARY HISTORY</h1>
           </div>
           
-        <div class="col-span-3 row-span-2 bg-white rounded-[12px] p-4 m-4 mt-2 ml-2 mb-2">
+        <div class="col-span-3 row-span-3 bg-white rounded-[12px] p-4 m-4 mt-2 ml-2 mb-2">
           <h1 class="text-[#017C35] font-bold text-xl">Term Info</h1>
           <TermInfo />
         </div>
