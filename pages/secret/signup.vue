@@ -98,12 +98,38 @@ async function onSubmit() {
 
   if (signInError) {
     console.error('Error signing in:', signInError);
-    
     return;
   }
   
   // Use the session's user ID for the next insert
   const user_id = signInData.session?.user?.id;
+
+  // --- NEW: Query for dean's acadYear and acadSem ---
+  let deanQuery = supabase
+    .from('users')
+    .select('acadYear, acadSem, semester_type')
+    .eq('role', 'Higher Ups')
+    .limit(1);
+
+  // Prefer matching by primaryCollege, else by pr_acadServices
+  if (primaryForm.primaryCollege && primaryForm.primaryCollege !== '' && primaryForm.primaryCollege !== 'None') {
+    deanQuery = deanQuery.eq('pr_college_id', parseUnitValue(primaryForm.primaryCollege));
+  } else if (primaryForm.pr_acadServices && primaryForm.pr_acadServices !== '' && primaryForm.pr_acadServices !== 'None') {
+    deanQuery = deanQuery.eq('pr_acadServices_id', parseUnitValue(primaryForm.pr_acadServices));
+  }
+
+  const { data: deanRows, error: deanError } = await deanQuery;
+
+  let acadYear = null;
+  let acadSem = null;
+  let semester_type = null;
+  if (deanError) {
+    console.error('Error fetching dean info:', deanError);
+  } else if (deanRows && deanRows.length > 0) {
+    acadYear = deanRows[0].acadYear;
+    acadSem = deanRows[0].acadSem;
+    semester_type = deanRows[0].semester_type;
+  }
 
   let { data: insertedUser, error: insertError } = await supabase
     .from('users')
@@ -127,6 +153,9 @@ async function onSubmit() {
         item: accountForm.item,
         designation: accountForm.designation,
         status: 'Active',
+        acadYear, // <-- add dean's acadYear
+        acadSem,  // <-- add dean's acadSem
+        semester_type,
       },
     ])
     .select();
