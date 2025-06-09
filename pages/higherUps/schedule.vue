@@ -49,9 +49,9 @@ onMounted(async ()=> {
   
   const { data: { user } } = await supabase.auth.getUser()
   userId.value = user?.id
-  getCurrectAcadYear()
-  getCurrentTerm()
-    if (!acadYear.value || !acadSem.value) {
+  await getCurrectAcadYear()
+  await getCurrentTerm()
+  if (!acadYear.value || !acadSem.value) {
     alert('Add academic year, term and semester type first before adding any schedule')
   }
 })
