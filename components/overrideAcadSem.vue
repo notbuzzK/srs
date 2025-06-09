@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import getAcadSem from '~/composables/getAcadSem'
 const supabase = useNuxtApp().$supabase;
 const toast = useToast()
 

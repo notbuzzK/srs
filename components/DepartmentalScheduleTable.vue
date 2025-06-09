@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import type { _height } from '#tailwind-config/theme';
-import type { z } from 'zod';
-import { useFacultyStore } from '~/stores/facultyStore'; 
 const supabase = useNuxtApp().$supabase;
 
 const { data: { user } } = await supabase.auth.getUser()

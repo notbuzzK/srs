@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { getDirectory } from 'nuxt/kit';
 import signup from '~/components/signup.vue';
 const supabase = useNuxtApp().$supabase;
 
