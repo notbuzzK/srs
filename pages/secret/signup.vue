@@ -13,14 +13,29 @@ const {
   acadServicesOptions,
   facultyItems,
   ranks,
-  range
+  range,
+  getDepartmentsForCollege,
+  getDepartmentsForAcadServices
 } = useAccountCreationValues()
 
-const {
-  days,
-  eventTypes,
-  otherTimeSlots
-} = useSchedule()
+function getFilteredDepartments(collegeValue: any, acadServicesValue: any) {
+  // Prefer filtering by college if selected, otherwise by academic service
+  if (collegeValue && collegeValue !== 'None' && collegeValue !== '') {
+    return getDepartmentsForCollege(Number(collegeValue));
+  }
+  if (acadServicesValue && acadServicesValue !== 'None' && acadServicesValue !== '') {
+    return getDepartmentsForAcadServices(Number(acadServicesValue));
+  }
+  return [];
+}
+
+const filteredPrimaryDepartments = computed(() =>
+  getFilteredDepartments(primaryForm.primaryCollege, primaryForm.pr_acadServices)
+);
+
+const filteredSecondaryDepartments = computed(() =>
+  getFilteredDepartments(secondaryForm.secondaryCollege, secondaryForm.sd_acadServices)
+);
 
 const items = [{
   key: 'account',
@@ -70,6 +85,7 @@ async function onSubmit() {
 
   if (signUpError) {
     console.error('Error signing up:', signUpError);
+    toast.add({ title: 'Error signing up', color: 'red' })
     return;
   } else {
     console.log('User signed up successfully:', signUpData);
@@ -82,16 +98,12 @@ async function onSubmit() {
 
   if (signInError) {
     console.error('Error signing in:', signInError);
+    
     return;
   }
   
   // Use the session's user ID for the next insert
   const user_id = signInData.session?.user?.id;
-
-/*   if (secondaryForm.secondaryCollege === null && secondaryForm.secondaryDept === null && secondaryForm.sd_acadServices === null) {
-    secondaryForm.sd_rank = null
-    secondaryForm.sd_rankValue = null
-  } */
 
   let { data: insertedUser, error: insertError } = await supabase
     .from('users')
@@ -102,17 +114,19 @@ async function onSubmit() {
         email: accountForm.email,
         password: accountForm.password,
         role: accountForm.userRole,
-        pr_college_id: primaryForm.primaryCollege,
-        acadServices_id: primaryForm.pr_acadServices,
-        pr_department_id: primaryForm.primaryDept,
-        pr_rank: primaryForm.pr_rank,
-        pr_rankValue: primaryForm.pr_rankValue,
-        sd_college_id: secondaryForm.secondaryCollege,
-        sd_department_id: secondaryForm.secondaryDept,
-        sd_rank: secondaryForm.sd_rank,
-        sd_rankValue: secondaryForm.sd_rankValue,
-        status: 'Active',
+        pr_college_id: parseUnitValue(primaryForm.primaryCollege),
+        pr_acadServices_id: parseUnitValue(primaryForm.pr_acadServices),
+        pr_department_id: parseUnitValue(primaryForm.primaryDept),
+        pr_rank: primaryForm.pr_rank === '' || primaryForm.pr_rank === 'None' ? null : primaryForm.pr_rank,
+        pr_rankValue: parseUnitValue(primaryForm.pr_rankValue),
+        sd_college_id: parseUnitValue(secondaryForm.secondaryCollege),
+        sd_acadServices_id: parseUnitValue(secondaryForm.sd_acadServices),
+        sd_department_id: parseUnitValue(secondaryForm.secondaryDept),
+        sd_rank: secondaryForm.sd_rank === '' || secondaryForm.sd_rank === 'None' ? null : secondaryForm.sd_rank,
+        sd_rankValue: parseUnitValue(secondaryForm.sd_rankValue),
+        item: accountForm.item,
         designation: accountForm.designation,
+        status: 'Active',
       },
     ])
     .select();
@@ -124,6 +138,12 @@ async function onSubmit() {
     toast.add({ title: 'Signup Successful!' });
     isOpen.value = false
   }
+}
+
+function parseUnitValue(val: any) {
+  if (val === '' || val === 'None' || val === null) return null
+  if (!isNaN(val)) return Number(val)
+  return val
 }
 
 const resetValues = () => {
@@ -171,7 +191,7 @@ onMounted(() => {
               </p>
             </template>
 
-<!-- Basic Information -->
+            <!-- Basic Information -->
             <div v-if="item.key === 'account'" class="space-y-3">
 
               <UFormGroup label="Name" name="name" required>
@@ -235,22 +255,22 @@ onMounted(() => {
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Primary Services" name="acadServices" required>
                 <USelect
                   v-model="primaryForm.pr_acadServices"
                   :options="acadServicesOptions"
                   optionAttribute="name"
+                  valueAttribute="value"
                   required
                 />
               </UFormGroup>
               
-              <UFormGroup label="Primary Department" name="primaryDept" required>
+              <UFormGroup label="Primary Department" name="primaryDept" >
                 <USelect
                   v-model="primaryForm.primaryDept"
-                  :options="departmentOptions"
+                  :options="filteredPrimaryDepartments"
                   valueAttribute="value"
                   optionAttribute="name"
-                  required 
                 />
               </UFormGroup>
 
@@ -292,22 +312,22 @@ onMounted(() => {
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Secondary Services" name="acadServices" required>
                 <USelect
                   v-model="secondaryForm.sd_acadServices"
                   :options="acadServicesOptions"
                   optionAttribute="name"
+                  valueAttribute="value"
                   required
                 />
               </UFormGroup>
 
-              <UFormGroup label="Secondary Department" name="secondaryDept" required>
+              <UFormGroup label="Secondary Department" name="secondaryDept" >
                 <USelect
                   v-model="secondaryForm.secondaryDept"
-                  :options="departmentOptions"
+                  :options="filteredSecondaryDepartments"
                   valueAttribute="value"
                   optionAttribute="name"
-                  required
                 />
               </UFormGroup>
 

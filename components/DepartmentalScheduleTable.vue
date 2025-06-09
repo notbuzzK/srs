@@ -18,7 +18,10 @@ const {
   acadYear,
   acadSem,
   getHourColor,
-  semesterType
+  semesterType,
+  isTeamTeaching,
+  facultyRows,
+  fetchSchedules
 } = useSchedule()
 
 const {
@@ -27,7 +30,7 @@ const {
   getAcadServicesName,
 } = useAccountCreationValues()
 
-const rows = ref<any>([])
+
 const facultyId = ref<any>('')
 const facultyInfo = ref<any>({})
 const isOpen = ref(false)
@@ -120,9 +123,9 @@ async function loadMembersUnderScheduler() {
   const { data, error } = await query
   if (error) {
     console.error('Error fetching members:', error.message)
-    rows.value = []
+    facultyRows.value = []
   } else {
-    rows.value = data || []
+    facultyRows.value = data || []
   }
   loading.value = false
 }
@@ -134,6 +137,9 @@ onMounted(async () => {
   await loadUserRow()
   await loadChildDeptIds()
   await loadMembersUnderScheduler()
+  if (!acadYear.value || !acadSem.value) {
+    alert('Add academic year, term and semester type first before adding any schedule')
+  }
 })
 
 // re-run when unit or deps change
@@ -230,8 +236,8 @@ const page = ref(1)
 const pageCount = 7
 
 const filteredRows = computed(() => {
-  if (!q.value) return rows.value 
-  return rows.value.filter((rows: any) =>
+  if (!q.value) return facultyRows.value 
+  return facultyRows.value.filter((rows: any) =>
     Object.values(rows).some((value) =>
       String(value).toLowerCase().includes(q.value.toLowerCase())
     )
@@ -325,7 +331,7 @@ const paginatedRows = computed(() => {
                       </div>
                     </div>
                   </div>
-                  <div v-if="facultyInfo.sd_college_id !== 'None' && facultyInfo.sd_department_id !== 'None' && facultyInfo.sd_acadServices_id !== 'None'"  >
+                  <div  >
                     <p class="font-medium text-[#017C35]">Secondary Unit:</p>
                     <div class="flex justify-between">
                       <div>
@@ -456,7 +462,7 @@ const paginatedRows = computed(() => {
         <h1 class="text-[#017C35] font-bold text-xl">Actions</h1>
 
         <div class="flex justify-between">
-          <UButton variant="solid" @click="showModal = true">Add Event</UButton>
+          <UButton variant="solid" @click="[showModal = true, isTeamTeaching = false]">Add Event</UButton>
           <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
         </div>
         <UButton variant="solid" class="bg-[#017C35] text-white" @click="">Suggest Schedule (not working yet)</UButton>
@@ -514,7 +520,6 @@ const paginatedRows = computed(() => {
             </div>
           </UCard>
         </UModal>
-
       </div>
     </div>
   </div>

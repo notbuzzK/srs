@@ -22,6 +22,7 @@ const facultyItems = [
 ]
 
 const ranks = [
+  { value: null, name: 'None' },
   'Instructor',
   'Assistant Professor',
   'Associate Professor',
@@ -121,7 +122,38 @@ const departmentOptions = [
   { value: 40, name: 'Otolaryngology', placeholder: 'CM-ORL-HNS'  },
 ];
 
-const range = [1, 2, 3, 4, 5, 6]
+const range = [ { value: null, name: 'None' }, 1, 2, 3, 4, 5, 6]
+
+const collegeToDepartments: Record<number, number[]> = {
+  1: [1, 2, 3], // CAS: BCH, DNSM, LHS
+  2: [7, 8, 9], // CMIT: RT, NMT, NMT;RT
+  3: [0], // CMLS
+  4: [0], // CN
+  5: [10, 11, 12, 13], // CRS: SLP, PT, OT, BMS
+  6: [0], // DMQCP
+  7: [0], // SHSSHS
+  8: [0], // CD
+  9: [15, 16, 17], // SAS: MAN, MPH, PhD
+  10: [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40], // CM
+};
+
+const acadServicesToDepartments: Record<number, number[]> = {
+  1: [4, 5], // CCDSL: NSTP, CPHD
+  2: [6], // CHSS: CHSS
+  3: [0], // RPAMDAFSC Library
+  4: [14], // TSA: SWGCD
+  5: [0], // CCEI
+}
+
+function getDepartmentsForCollege(collegeValue: number) {
+  if (!collegeToDepartments[collegeValue]) return [];
+  return departmentOptions.filter((opt: any) => collegeToDepartments[collegeValue].includes(opt.value));
+}
+
+function getDepartmentsForAcadServices(acadServicesValue: number) {
+  if (!acadServicesToDepartments[acadServicesValue]) return [];
+  return departmentOptions.filter((opt: any) => acadServicesToDepartments[acadServicesValue].includes(opt.value));
+}
 
 const getCollegeName = (value: number) => {
   const college = collegeOptions.find((college) => college.value === value);
@@ -152,5 +184,7 @@ export function useAccountCreationValues() {
     getCollegeName,
     getDepartmentName,
     getAcadServicesName,
+    getDepartmentsForCollege,
+    getDepartmentsForAcadServices
   };
 }

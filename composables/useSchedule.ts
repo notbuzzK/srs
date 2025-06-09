@@ -70,6 +70,12 @@ const modality = [
   'Others'
 ]
 
+const delivery = [
+  'Conventional',
+  'Team Teaching',
+  'Turn Teaching'
+]
+
 const timeSlotsIndices = Array.from({ length: timeSlots.length }, (_, i) => i)
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const eventTypes = ['Teaching', 'AW', 'ARP', 'CH']
@@ -81,6 +87,11 @@ const acadSem = ref('')
 const semesterType = ref('')
 const events = ref<any[]>([])
 const showModal = ref(false)
+const isTeamTeaching = ref(false)
+const facultyRows = ref<any>([])
+const editedEventId = ref<number|null>(null)
+const showConfirmModal = ref(false)
+const confirmPayload   = ref<{insert: any[], update: any[]}|null>(null)
 const newEvent = ref({
   // name: '',
   type: '',
@@ -90,7 +101,9 @@ const newEvent = ref({
   room: 'TBA',
   day: 'Monday',
   startTime: timeSlots[0],
-  endTime: timeSlots[1]
+  endTime: timeSlots[1],
+  delivery: 'Conventional',  // default delivery mode
+  teamTeaching: [] as string[],  // will hold user_auth_id[] of other faculty
 })
 
 // TODO: modify course fetching to handle 100+ courses
@@ -199,7 +212,9 @@ function addEvent() {
 
   const eventToAdd = {
     id: Date.now(),
-    faculty_id: userId.value,
+    faculty_id:   userId.value,            // primary faculty
+    teamTeaching: [...newEvent.value.teamTeaching],  // additional faculty
+    delivery:     newEvent.value.delivery,
     name: newEvent.value.type,
     type: newEvent.value.type,
     programCode: newEvent.value.programCode,
@@ -214,6 +229,7 @@ function addEvent() {
     acadYear: acadYear.value,
     acadSem: acadSem.value,
     isNew: true, // Mark as new
+    isEdited: false,
   };
 
   events.value.push(eventToAdd);
@@ -228,6 +244,8 @@ function addEvent() {
     day: '',
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
+    delivery: 'Conventional',
+    teamTeaching: [],
   };
 }
 
@@ -290,9 +308,6 @@ function getRowSpan(day: string, slotIndex: number) {
 )
 */
 
-const getConditionsForColors = () => {
-
-}
 
 const fullTimeConfig = {
   semester: {
@@ -326,302 +341,46 @@ const partTimeConfig = {
 
 // colors for different hours
 function getHourColor(hour: number, designation: string, type: string, item: string, term: string){
-  console.log('hour:', hour, 'designation:', designation, 'type:', type, 'item:', item, 'term:', term)
-  // top level: check if faculty item is part time, else full time
-  if (item === 'Part-Time') {
+  // 1) Choose full-time vs part-time config
+  const cfg = item === 'Part-Time'
+    ? partTimeConfig
+    : fullTimeConfig;
 
-    // second level: check semester type
-    if (term === 'Semestral') {
+  // 2) Pick the right term block (normalize to lowercase key)
+  // Add a check to ensure term is not null before calling toLowerCase()
+  const termKey = term ? term.toLowerCase() as 'semester' | 'trimestral' | 'midyear' : 'semester'; // Provide a default like 'semester'
+  const termCfg = cfg[termKey] || cfg.semester;
 
-      // if part time, go directly to checking of type
+  // 3) Pick the bucket by designation (fall back to 'general')
+  const bucket = termCfg[designation] || termCfg.general;
 
-      // fourth level: check type
-      if (type === 'Teaching') {
-        if (hour >= partTimeConfig.semester['general'].teachingLoad) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      } else if (type === 'CH') {
-        if (hour >= partTimeConfig.semester['general'].consultation) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      } else if (type === 'Total Hours') {
-        if (hour >= partTimeConfig.semester['general'].residency) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      }
-    } else if (term === 'Trimestral') {
-      // check type
-      if (type === 'Teaching') {
-        if (hour >= partTimeConfig.trimestral['general'].teachingLoad) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      } else if (type === 'CH') {
-        if (hour >= partTimeConfig.trimestral['general'].consultation) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      } else if (type === 'Total Hours') {
-        if (hour >= partTimeConfig.trimestral['general'].residency) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      }
-    }
-  } else {
-    // second level: check semester type
-    if (term === 'Semestral') {
+  // 4) Map your type to the config property
+  const key: keyof typeof bucket = (
+    type === 'Teaching' ? 'teachingLoad' :
+    type === 'CH'       ? 'consultation' :
+    type === 'ARP'      ? 'academicPursuits' :
+                          'residency'    // covers "Total Hours"
+  );
 
-      // third level: check faculty designation
-      if (designation === 'Vice Chancellor' || designation === 'Academic Dean' || designation === 'TSA Dean') {
+  const threshold = bucket[key];
 
-        // fourth level: check type
-        if (type === 'Teaching') {
-
-          // fifth level: check hour
-          if (hour <= fullTimeConfig.semester['VC/Dean'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.semester['VC/Dean'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.semester['VC/Dean'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      } else if (designation === 'SHSSHS Director' || designation === 'Director' || designation === 'Vice Dean' || designation === 'Program Director' || designation === 'Assistant Director') {
-
-        // fourth level: check type
-        if (type === 'Teaching') {
-
-          if (hour <= fullTimeConfig.semester['VD/PD/AD'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.semester['VD/PD/AD'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.semester['VD/PD/AD'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      } else if (designation === 'Chair' || designation === 'Vice Chair' || designation === 'Coordinator') {
-
-        // fourth level: check type
-        if (type === 'Teaching') {
-
-          if (hour <= fullTimeConfig.semester['Chair'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.semester['Chair'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.semester['Chair'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-        
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      } else if (designation === 'Academic Teaching Faculty' || designation === 'Academic Service Faculty') {
-        
-        // fourth level: check type
-        if (type === 'Teaching') {
-
-          if (hour <= fullTimeConfig.semester['ATF/ASF'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.semester['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.semester['ATF/ASF'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.semester['ATF/ASF'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.semester['general'].residency + fullTimeConfig.semester['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      }
-      
-    } else if (term === 'Trimestral') {
-      if (designation === 'Vice Chancellor' || designation === 'Academic Dean' || designation === 'TSA Dean') {
-        // second level: check type
-        if (type === 'Teaching') {
-
-          // third level: check hour
-          if (hour <= fullTimeConfig.trimestral['VC/Dean'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.trimestral['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.trimestral['VC/Dean'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.trimestral['VC/Dean'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.trimestral['general'].residency + fullTimeConfig.trimestral['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      } else if (designation === 'SHSSHS Director' || designation === 'Director' || designation === 'Vice Dean' || designation === 'Program Director' || designation === 'Assistant Director') {
-
-        // second level: check type
-        if (type === 'Teaching') {
-
-          // third level: check hour
-          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].teachingLoad) {
-            return 'text-orange-600'
-          } else if (hour >= fullTimeConfig.trimestral['general'].teachingLoad) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-          
-        } else if (type === 'CH') {
-          
-          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].consultation) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'ARP') {
-          
-          if (hour <= fullTimeConfig.trimestral['VD/PD/AD'].academicPursuits) {
-            return 'text-orange-600'
-          } else {
-            return 'text-black'
-          }
-
-        } else if (type === 'Total Hours') {
-
-          if (hour >= fullTimeConfig.trimestral['general'].residency + fullTimeConfig.trimestral['general'].overload) {
-            return 'text-red-600'
-          } else {
-            return 'text-black'
-          }
-        }
-      }
-
-    } else if (term === 'Midyear') {
-      
-      // second level: check type
-      if (type === 'Total Hours') {
-
-        if (hour >= fullTimeConfig.midyear['general'].residency) {
-          return 'text-red-600'
-        } else {
-          return 'text-black'
-        }
-      }
-    }
+  // 5) If threshold is zero, we skip the orange band:
+  //    any positive hours => RED; zero or below => BLACK
+  if (threshold === 0) {
+    return hour > 0 ? 'text-red-600' : 'text-black';
   }
+
+  // 6) Otherwise use the 10% margin logic:
+  if (hour <= threshold) {
+    // At or below threshold → OK
+    return 'text-black';
+  }
+  if (hour <= threshold * 1.1) {
+    // Up to 10% over → Warning
+    return 'text-orange-600';
+  }
+  // More than 10% over → Exceeded
+  return 'text-red-600';
 }
 
 
@@ -662,11 +421,19 @@ function cancelModal() {
     day: 'Monday',
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
+    delivery: 'Conventional',
+    teamTeaching: [],
   };
 }
 
 async function fetchSchedules(user_auth_id: string) {
   const supabase = useNuxtApp().$supabase;
+
+  if (!acadYear.value || !acadSem.value) {
+    console.warn('Academic year or term not set, skipping schedule fetch.')
+
+    return
+  }
 
   const { data, error } = await supabase
     .from('facultySchedules')
@@ -683,8 +450,8 @@ async function fetchSchedules(user_auth_id: string) {
       faculty_id: item.faculty_id,
       programCode: item.programCode,
       course: item.course_id,
-      name: item.schedule_name,
       type: item.schedule_type,
+      delivery: item.delivery,
       modality: item.modality,
       day: item.day,
       displayStart: item.start_time,
@@ -695,46 +462,297 @@ async function fetchSchedules(user_auth_id: string) {
       startIndex: otherTimeSlots.indexOf(item.start_time),
       endIndex: otherTimeSlots.indexOf(item.end_time),
       isNew: false, // Mark as existing
+      isEdited: false,
     }));
   }
+}
+
+function saveEvent() {
+  const startIndex  = otherTimeSlots.indexOf(newEvent.value.startTime)
+  const endIndex    = otherTimeSlots.indexOf(newEvent.value.endTime)
+
+  if (editedEventId.value !== null) {
+    // ——— UPDATE existing event ———
+    const idx = events.value.findIndex(e => e.id === editedEventId.value)
+    if (idx === -1) return
+    Object.assign(events.value[idx], {
+      type:         newEvent.value.type,
+      programCode:  newEvent.value.programCode,
+      course:       newEvent.value.course,
+      room:         newEvent.value.room,
+      day:          newEvent.value.day,
+      startIndex,
+      endIndex,
+      displayStart: newEvent.value.startTime,
+      displayEnd:   newEvent.value.endTime,
+      delivery:     newEvent.value.delivery,
+      teamTeaching: [...newEvent.value.teamTeaching],
+      isEdited:     true,   // mark for update
+    })
+  } else {
+    // ——— INSERT new event ———
+    const eventToAdd = {
+      id:            Date.now(),
+      faculty_id:    userId.value,
+      department_id: primaryDept.value,
+      name:          newEvent.value.type,
+      type:          newEvent.value.type,
+      programCode:   newEvent.value.programCode,
+      course:        newEvent.value.course,
+      room:          newEvent.value.room,
+      day:           newEvent.value.day,
+      startIndex,
+      endIndex,
+      displayStart:  newEvent.value.startTime,
+      displayEnd:    newEvent.value.endTime,
+      acadYear:      acadYear.value,
+      acadSem:       acadSem.value,
+      delivery:      newEvent.value.delivery,
+      teamTeaching:  [...newEvent.value.teamTeaching],
+      isNew:         true,
+      isEdited:      false,
+    }
+    events.value.push(eventToAdd)
+  }
+
+  // reset everything
+  editedEventId.value = null
+  showModal.value     = false
+  newEvent.value      = {
+    type: '',
+    programCode: '',
+    course: '',
+    modality: '',
+    room: 'TBA',
+    day: '',
+    startTime: otherTimeSlots[0],
+    endTime: otherTimeSlots[1],
+    delivery: 'Conventional',
+    teamTeaching: [],
+  };
+}
+
+function startEdit(evt: any) {
+  editedEventId.value = evt.id
+  // copy its data into newEvent so the modal fields populate
+  newEvent.value = {
+    type:         evt.type,
+    programCode:  evt.programCode,
+    course:       evt.course,
+    room:         evt.room,
+    day:          evt.day,
+    startTime:    evt.displayStart,
+    endTime:      evt.displayEnd,
+    modality:     evt.modality,
+    delivery:     evt.delivery,
+    teamTeaching: [...(evt.teamTeaching||[])],
+  }
+  showModal.value = true
+}
+
+// Call this when the user clicks “Confirm” in the confirm modal:
+async function onConfirmUpload() {
+  if (!confirmPayload.value) return;
+  const supabase = useNuxtApp().$supabase;
+
+  // 1️⃣ Dump what we’re about to send
+  console.log('Confirming payload:', JSON.stringify(confirmPayload.value, null, 2));
+
+  // 2️⃣ Try the inserts with .select() so we get full error info
+  if (confirmPayload.value.insert.length) {
+    const { data, error, status, statusText } = await supabase
+      .from('facultySchedules')
+      .insert(confirmPayload.value.insert)
+      .select();
+
+    console.log('Insert response:', { status, statusText, data, error });
+    if (error) {
+      console.error('Insert failed:', error);
+      return;
+    }
+  }
+
+  // 3️⃣ Try the updates with .select()
+  for (const upd of confirmPayload.value.update) {
+    console.log(`Updating schedule_id=${upd.id} with`, upd.updateData);
+    const { data, error, status, statusText } = await supabase
+      .from('facultySchedules')
+      .update(upd.updateData)
+      .eq('schedule_id', upd.id)
+      .select();
+
+    console.log(`Update response [${upd.id}]:`, { status, statusText, data, error });
+    if (error) {
+      console.error('Update failed:', error);
+      return;
+    }
+  }
+
+  // 4️⃣ If we get here, everything succeeded
+  alert('All schedules saved successfully.');
+  showConfirmModal.value = false;
+  confirmPayload.value   = null;
+  await fetchSchedules(userId.value);
+}
+
+
+// Call this when the user clicks “Cancel” in the confirm modal:
+function onCancelUpload() {
+  showConfirmModal.value = false
+  confirmPayload.value   = null
+  // leave events[] intact so they can be edited
 }
 
 async function onSubmit() {
-  const supabase = useNuxtApp().$supabase;
+  const supabase = useNuxtApp().$supabase
 
-  const payload = events.value
-    .filter(event => event.isNew) // Only include new events
-    .map(event => ({
-      faculty_id: event.faculty_id,
-      programCode: event.programCode,
-      course_id: event.course,
-      modality: event.modality,
-      day: event.day,
-      schedule_type: event.type,
-      start_time: event.displayStart,
-      end_time: event.displayEnd,
-      room: event.room,
-      acadYear: event.acadYear,
-      acadSem: event.acadSem,
-    }));
+  // 1) Split events into new vs edited
+  const toInsert = events.value.filter(e => e.isNew)
+  const toUpdate = events.value.filter(e => e.isEdited && !e.isNew)
 
-  if (payload.length === 0) {
-    console.log('No new schedules to upload.');
-    return;
+  // 2) Conflict‐check times for all…
+  for (const evt of [...toInsert, ...toUpdate]) {
+    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])]))
+    const { day, displayStart: start, displayEnd: end } = evt
+
+    const { data: overlaps, error: overlapErr } = await supabase
+      .from('facultySchedules')
+      .select('faculty_id')
+      .in('faculty_id', allFaculty)
+      .eq('day', day)
+      .or(`and(start_time.lte.${end},end_time.gte.${start})`)
+
+    if (overlapErr) {
+      console.error('Conflict‐check error', overlapErr)
+      return
+    }
+    if (overlaps.length) {
+      const names = overlaps.map(o => o.faculty_id).join(', ')
+      alert(`Time overlap on ${day} ${start}–${end} for: ${names}`)
+      return
+    }
   }
 
-  const { data, error } = await supabase
-    .from('facultySchedules')
-    .insert(payload)
-    .select();
+  // 3) Duplicate‐booking check for Conventional delivery only
+  for (const evt of toInsert.filter(e => e.delivery === 'Conventional')) {
+    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])]))
+    const { day, type, displayStart: start, displayEnd: end } = evt
 
-  if (error) {
-    console.error('Error uploading schedule:', error.message, payload);
-  } else {
-    console.log('Schedule uploaded successfully:', data);
-    await fetchSchedules(userId.value);
+    const { data: duplicates, error: dupErr } = await supabase
+      .from('facultySchedules')
+      .select('faculty_id')
+      .in('faculty_id', allFaculty)
+      .eq('day', day)
+      .eq('schedule_type', type)
+      .eq('start_time', start)
+      .eq('end_time', end)
+
+    if (dupErr) {
+      console.error('Duplicate‐check error', dupErr)
+      return
+    }
+    if (duplicates.length) {
+      const names = duplicates.map(d => d.faculty_id).join(', ')
+      alert(`Exact schedule already exists for ${names} on ${day} ${start}–${end}`)
+      return
+    }
+  }
+
+  // 4) Threshold check: build a combined payload, but check totals first
+  const insertPayload = [], updatePayload = []
+  let requiresConfirmation = false
+
+  // helper to check a single evt for threshold breach
+  function checkThreshold(evt: any) {
+    const colors = {
+      Teaching: getHourColor(evt.teachingHours, evt.designation,'Teaching',evt.item,evt.term),
+      ARP:      getHourColor(evt.arpHours,      evt.designation,'ARP',     evt.item,evt.term),
+      CH:       getHourColor(evt.chHours,       evt.designation,'CH',      evt.item,evt.term),
+      'Total Hours': getHourColor(evt.totalHours,evt.designation,'Total Hours',evt.item,evt.term),
+    }
+    return Object.values(colors).some(c => c === 'text-red-600')
+  }
+
+  for (const evt of toInsert) {
+    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching || [])]))
+    for (const fac of allFaculty) {
+      const row = {
+        faculty_id: fac,
+        programCode: evt.programCode,
+        course_id: evt.course ? Number(evt.course) : null, 
+        schedule_type: evt.type,
+        delivery: evt.delivery,
+        modality: evt.modality,
+        day: evt.day,
+        start_time: evt.displayStart,
+        end_time: evt.displayEnd,
+        room: evt.room,
+        acadYear: evt.acadYear,
+        acadSem: evt.acadSem,
+      }
+      insertPayload.push(row)
+      if (checkThreshold(evt)) {
+        requiresConfirmation = true
+      }
+    }
+  }
+  for (const evt of toUpdate) {
+    const updateData = {
+      programCode: evt.programCode,
+      course_id: evt.course ? Number(evt.course) : null, 
+      schedule_type: evt.type,
+      delivery: evt.delivery,
+      modality: evt.modality,
+      day: evt.day,
+      start_time: evt.displayStart,
+      end_time: evt.displayEnd,
+      room: evt.room,
+      acadYear: evt.acadYear,
+      acadSem: evt.acadSem,
+    }
+    updatePayload.push({ id: evt.id, updateData })
+    if (checkThreshold(evt)) {
+      requiresConfirmation = true
+    }
+  }
+
+  console.log('Insert payload:', JSON.stringify(insertPayload, null, 2));
+  console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
+
+  // 5) If any threshold was breached, pause for confirmation:
+  if (requiresConfirmation) {
+    confirmPayload.value = {
+      insert: insertPayload,
+      update: updatePayload,
+    }
+    showConfirmModal.value = true
+    return   // wait for user to confirm
+  }
+
+  // 6) Otherwise go ahead and upload immediately
+  if (insertPayload.length) {
+    const { error: insertError } = await supabase.from('facultySchedules').insert(insertPayload)
+    if (insertError) {
+      console.error('Insert error:', insertError)
+      alert('Insert error: ' + JSON.stringify(insertError))
+      return
+    }
+  }
+  const updateResults = await Promise.all(updatePayload.map(u =>
+    supabase
+      .from('facultySchedules')
+      .update(u.updateData)
+      .eq('schedule_id', u.id)
+  ))
+  const updateError = updateResults.find(r => r.error)
+  if (updateError) {
+    console.error('Update error:', updateError.error)
+    alert('Update error: ' + JSON.stringify(updateError.error))
+    return
   }
 }
+
+
 
 export function useSchedule() {
   return {
@@ -772,6 +790,16 @@ export function useSchedule() {
     fetchSchedules,
     onCourseSearch,
     modality,
-    getHourColor
+    getHourColor,
+    isTeamTeaching,
+    facultyRows,
+    delivery,
+    startEdit,
+    saveEvent,
+    editedEventId,
+    showConfirmModal,
+    confirmPayload,
+    onCancelUpload,
+    onConfirmUpload
   }
 }

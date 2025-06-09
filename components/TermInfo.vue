@@ -68,6 +68,7 @@ async function loadCurrent() {
   if (!error && data) {
     acadInfo.value.academicYear = data.acadYear
     acadInfo.value.term = data.acadSem
+    acadInfo.value.semesterType = data.semester_type
   }
 }
 onMounted(loadCurrent)

@@ -15,8 +15,29 @@ const {
   range,
   getCollegeName,
   getDepartmentName,
-  getAcadServicesName
+  getAcadServicesName,
+  getDepartmentsForCollege,
+  getDepartmentsForAcadServices
 } = useAccountCreationValues()
+
+function getFilteredDepartments(collegeValue: any, acadServicesValue: any) {
+  // Prefer filtering by college if selected, otherwise by academic service
+  if (collegeValue && collegeValue !== 'None' && collegeValue !== '') {
+    return getDepartmentsForCollege(Number(collegeValue));
+  }
+  if (acadServicesValue && acadServicesValue !== 'None' && acadServicesValue !== '') {
+    return getDepartmentsForAcadServices(Number(acadServicesValue));
+  }
+  return [];
+}
+
+const filteredPrimaryDepartments = computed(() =>
+  getFilteredDepartments(primaryForm.primaryCollege, primaryForm.pr_acadServices)
+);
+
+const filteredSecondaryDepartments = computed(() =>
+  getFilteredDepartments(secondaryForm.secondaryCollege, secondaryForm.sd_acadServices)
+);
 
 const {
   days,
@@ -65,7 +86,7 @@ const secondaryForm = reactive({
   sd_acadServices: '', 
   secondaryDept: '',
   sd_rank: '',
-  sd_rankValue: '', 
+  sd_rankValue: '' , 
 })
 
 async function onSubmit() {
@@ -79,6 +100,7 @@ async function onSubmit() {
 
   if (signUpError) {
     console.error('Error signing up:', signUpError);
+    toast.add({ title: 'Error signing up', color: 'red' })
     return;
   } else {
     console.log('User signed up successfully:', signUpData);
@@ -91,11 +113,28 @@ async function onSubmit() {
 
   if (signInError) {
     console.error('Error signing in:', signInError);
+    
     return;
   }
   
   // Use the session's user ID for the next insert
   const user_id = signInData.session?.user?.id;
+
+  // Get the current user's acadYear and acadSem
+  const { data: creatorData, error: creatorError } = await supabase
+    .from('users')
+    .select('acadYear, acadSem')
+    .eq('user_auth_id', user?.id)
+    .single();
+
+  if (creatorError) {
+    console.error('Error fetching creator term info:', creatorError);
+    toast.add({ title: 'Error fetching your term info', color: 'red' });
+    return;
+  }
+
+  const creatorAcadYear = creatorData?.acadYear || '';
+  const creatorAcadSem = creatorData?.acadSem || '';
 
   let { data: insertedUser, error: insertError } = await supabase
     .from('users')
@@ -106,17 +145,21 @@ async function onSubmit() {
         email: accountForm.email,
         password: accountForm.password,
         role: accountForm.userRole,
-        pr_college_id: primaryForm.primaryCollege,
-        acadServices_id: primaryForm.pr_acadServices,
-        pr_department_id: primaryForm.primaryDept,
-        pr_rank: primaryForm.pr_rank,
-        pr_rankValue: primaryForm.pr_rankValue,
-        sd_college_id: secondaryForm.secondaryCollege,
-        sd_department_id: secondaryForm.secondaryDept,
-        sd_rank: secondaryForm.sd_rank,
-        sd_rankValue: secondaryForm.sd_rankValue,
-        status: 'Active',
+        pr_college_id: parseUnitValue(primaryForm.primaryCollege),
+        pr_acadServices_id: parseUnitValue(primaryForm.pr_acadServices),
+        pr_department_id: parseUnitValue(primaryForm.primaryDept),
+        pr_rank: primaryForm.pr_rank === '' || primaryForm.pr_rank === 'None' ? null : primaryForm.pr_rank,
+        pr_rankValue: parseUnitValue(primaryForm.pr_rankValue),
+        sd_college_id: parseUnitValue(secondaryForm.secondaryCollege),
+        sd_acadServices_id: parseUnitValue(secondaryForm.sd_acadServices),
+        sd_department_id: parseUnitValue(secondaryForm.secondaryDept),
+        sd_rank: secondaryForm.sd_rank === '' || secondaryForm.sd_rank === 'None' ? null : secondaryForm.sd_rank,
+        sd_rankValue: parseUnitValue(secondaryForm.sd_rankValue),
+        item: accountForm.item,
         designation: accountForm.designation,
+        status: 'Active',
+        acadYear: creatorAcadYear,   // <-- set from creator
+        acadSem: creatorAcadSem,     // <-- set from creator
       },
     ])
     .select();
@@ -128,6 +171,11 @@ async function onSubmit() {
     toast.add({ title: 'Signup Successful!' });
     isOpen.value = false
   }
+}
+function parseUnitValue(val: any) {
+  if (val === '' || val === 'None' || val === null) return null
+  if (!isNaN(val)) return Number(val)
+  return val
 }
 
 const resetValues = () => {
@@ -209,9 +257,11 @@ async function onExpandUnit(unit: { id: number; type: string }) {
     return
   }
 
+  historyUnit.value = unit // <-- always set this!
+
   if (!deptData || deptData.length === 0) {
     // no departments → go straight to members
-    await loadMembers(unit, 'department')
+    await loadMembers(unit)
   } else {
     // show departments
     rows.value = deptData.map(d => ({
@@ -219,8 +269,6 @@ async function onExpandUnit(unit: { id: number; type: string }) {
       name: d.department_name,
       type: 'department'
     }))
-    // remember parent so Back works
-    historyUnit.value = unit
   }
 }
 
@@ -234,18 +282,16 @@ async function loadMembers(
 
   let query = supabase.from('users').select('user_auth_id, name')
 
-  if (parent.type === 'department' || asType === 'department') {
-    // ONLY primary department now
-    query = query.eq('pr_department_id', parent.id)
-  }
-  else if (parent.type === 'college') {
-    // ONLY primary college
-    query = query.eq('pr_college_id', parent.id)
-  }
-  else {
-    // ONLY primary academic service
-    query = query.eq('pr_acadServices_id', parent.id)
-  }
+if (parent.type === 'department') {
+  // ONLY primary department now
+  query = query.eq('pr_department_id', parent.id)
+} else if (parent.type === 'college') {
+  // ONLY primary college
+  query = query.eq('pr_college_id', parent.id)
+} else {
+  // ONLY primary academic service
+  query = query.eq('pr_acadServices_id', parent.id)
+}
 
   const { data: userData, error: userErr } = await query
   if (userErr) {
@@ -351,14 +397,14 @@ const addEvent = () => {
 
   // Reset the schedule form
   schedule.value = {
-  scheduleType: '',
-  programCode: '',
-  course: '',
-  room: '',
-  modality: '',
-  day: '',
-  startTime: '',
-  endTime: ''
+    scheduleType: '',
+    programCode: '',
+    course: '',
+    room: '',
+    modality: '',
+    day: '',
+    startTime: '',
+    endTime: ''
   }
 }
 
@@ -498,22 +544,22 @@ onMounted(async () => {
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Primary Services" name="acadServices" required>
                 <USelect
                   v-model="primaryForm.pr_acadServices"
                   :options="acadServicesOptions"
                   optionAttribute="name"
+                  valueAttribute="value"
                   required
                 />
               </UFormGroup>
               
-              <UFormGroup label="Primary Department" name="primaryDept" required>
+              <UFormGroup label="Primary Department" name="primaryDept">
                 <USelect
                   v-model="primaryForm.primaryDept"
-                  :options="departmentOptions"
+                  :options="filteredPrimaryDepartments"
                   valueAttribute="value"
                   optionAttribute="name"
-                  required 
                 />
               </UFormGroup>
 
@@ -555,22 +601,22 @@ onMounted(async () => {
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Secondary Services" name="acadServices" required>
                 <USelect
                   v-model="secondaryForm.sd_acadServices"
                   :options="acadServicesOptions"
                   optionAttribute="name"
+                  valueAttribute="value"
                   required
                 />
               </UFormGroup>
 
-              <UFormGroup label="Secondary Department" name="secondaryDept" required>
+              <UFormGroup label="Secondary Department" name="secondaryDept">
                 <USelect
                   v-model="secondaryForm.secondaryDept"
-                  :options="departmentOptions"
-                  valueAttribute="value"
+                  :options="filteredSecondaryDepartments"
                   optionAttribute="name"
-                  required
+                  valueAttribute="value"
                 />
               </UFormGroup>
 
@@ -656,11 +702,27 @@ onMounted(async () => {
                   </template>
 
                   <div class="grid grid-cols-1 grid-rows-3 gap-4">
-                    <div class="col-span-1 row-span-1">
-                      <p class="text-sm text-gray-500 dark:text-gray-400">
-                        You are borrowing this member from: 
-                      </p>
-                      <span>{{ historyParent?.name }}</span>
+                    <div class="col-span-1 row-span-1 flex justify-between">
+                      <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                          You are borrowing this member from: 
+                        </p>
+                        <span>{{ historyParent?.name }}</span>
+                      </div>
+                      <div>
+                        <!-- show requested user info -->
+                        <div class="col-span-1 row-span-1">
+                          <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Please confirm the details below:
+                          </p>
+                          <ul class="list-disc pl-5 space-y-1">
+                            <li>Name: {{ facultyInfo?.name }}</li>
+                            <li>Designation: {{ facultyInfo?.designation }}</li>
+                            <li>Rank: {{ facultyInfo?.pr_rank }}</li>
+                            <li>Status: {{ facultyInfo?.status }}</li>
+                          </ul>
+                        </div>
+                      </div>
        
                     </div>
 

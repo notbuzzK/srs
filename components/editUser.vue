@@ -12,9 +12,29 @@ const {
   acadServicesOptions,
   facultyItems,
   ranks,
-  range
+  range,
+  getDepartmentsForCollege,
+  getDepartmentsForAcadServices
 } = useAccountCreationValues()
 
+function getFilteredDepartments(collegeValue: any, acadServicesValue: any) {
+  // Prefer filtering by college if selected, otherwise by academic service
+  if (collegeValue && collegeValue !== 'None' && collegeValue !== '') {
+    return getDepartmentsForCollege(Number(collegeValue));
+  }
+  if (acadServicesValue && acadServicesValue !== 'None' && acadServicesValue !== '') {
+    return getDepartmentsForAcadServices(Number(acadServicesValue));
+  }
+  return [];
+}
+
+const filteredPrimaryDepartments = computed(() =>
+  getFilteredDepartments(primaryForm.primaryCollege, primaryForm.pr_acadServices)
+);
+
+const filteredSecondaryDepartments = computed(() =>
+  getFilteredDepartments(secondaryForm.secondaryCollege, secondaryForm.sd_acadServices)
+);
 const props = defineProps<{ 
   user_auth_id: string | undefined,
   usedIn: string,
@@ -271,7 +291,7 @@ const isOpen = ref(false);
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Primary Services" name="acadServices" required>
                 <USelect
                   v-model="primaryForm.pr_acadServices"
                   :options="acadServicesOptions"
@@ -281,13 +301,12 @@ const isOpen = ref(false);
                 />
               </UFormGroup>
               
-              <UFormGroup label="Primary Department" name="primaryDept" required>
+              <UFormGroup label="Primary Department" name="primaryDept">
                 <USelect
                   v-model="primaryForm.primaryDept"
-                  :options="departmentOptions"
+                  :options="filteredPrimaryDepartments"
                   valueAttribute="value"
                   optionAttribute="name"
-                  required 
                   :disabled="isDisabled"
                 />
               </UFormGroup>
@@ -331,7 +350,7 @@ const isOpen = ref(false);
                 />
               </UFormGroup>
 
-              <UFormGroup label="Academic Services" name="acadServices" required>
+              <UFormGroup label="Secondary Services" name="acadServices" required>
                 <USelect
                   v-model="secondaryForm.sd_acadServices"
                   :options="acadServicesOptions"
@@ -341,13 +360,12 @@ const isOpen = ref(false);
                 />
               </UFormGroup>
 
-              <UFormGroup label="Secondary Department" name="secondaryDept" required>
+              <UFormGroup label="Secondary Department" name="secondaryDept" >
                 <USelect
                   v-model="secondaryForm.secondaryDept"
-                  :options="departmentOptions"
+                  :options="filteredSecondaryDepartments"
                   valueAttribute="value"
                   optionAttribute="name"
-                  required
                   :disabled="isDisabled"
                 />
               </UFormGroup>

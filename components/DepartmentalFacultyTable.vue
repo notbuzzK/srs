@@ -36,7 +36,7 @@ const columns = [{
   class: 'w-[10%]'
 }, {
   key: 'acadServices',
-  label: 'Acad Services',
+  label: 'Services',
   sortable: true,
   class: 'w-[10%]'
 }, {
@@ -128,61 +128,60 @@ async function loadPeople() {
     return
   }
 
-  people.value = users!.map(u => {
-    const prCol = u.pr_college_id
-    const sdCol = u.sd_college_id
-    const prDept = u.pr_department_id
-    const sdDept = u.sd_department_id
-    const prSvc = u.pr_acadServices_id
-    const sdSvc = u.sd_acadServices_id
-    const prRank = u.pr_rank
-    const prRankValue = u.pr_rankValue
-    const sdRank = u.sd_rank
-    const sdRankValue = u.sd_rankValue
+people.value = users!.map(u => {
+  const prCol = u.pr_college_id
+  const sdCol = u.sd_college_id
+  const prDept = u.pr_department_id
+  const sdDept = u.sd_department_id
+  const prSvc = u.pr_acadServices_id
+  const sdSvc = u.sd_acadServices_id
+  const prRank = u.pr_rank
+  const prRankValue = u.pr_rankValue
+  const sdRank = u.sd_rank
+  const sdRankValue = u.sd_rankValue
 
+  // Resolve college logic
+  let college = 'None'
+  if (u.acadServices_id && u.acadServices_id > 0) {
+    college = 'None'
+  } else if (prCol && sdCol && prCol !== sdCol) {
+    college = `${getCollegeName(prCol)}, ${getCollegeName(sdCol)}`
+  } else if (prCol || sdCol) {
+    college = getCollegeName(prCol || sdCol)
+  }
 
-    // Resolve college logic
-    let college = 'None'
-    if (u.acadServices_id && u.acadServices_id > 0) {
-      college = 'None'
-    } else if (prCol && sdCol && prCol !== sdCol) {
-      college = `${getCollegeName(prCol)}, ${getCollegeName(sdCol)}`
-    } else if (prCol || sdCol) {
-      college = getCollegeName(prCol || sdCol)
-    }
+  // Resolve department logic
+  let department = 'None'
+  if (prDept && sdDept && prDept !== sdDept) {
+    department = `${getDepartmentName(prDept)}, ${getDepartmentName(sdDept)}`
+  } else if (prDept || sdDept) {
+    department = getDepartmentName(prDept || sdDept)
+  }
 
-    // Resolve department logic
-    let department = 'None'
-    if (prDept && sdDept && prDept !== sdDept) {
-      department = `${getDepartmentName(prDept)}, ${getDepartmentName(sdDept)}`
-    } else if (prDept || sdDept) {
-      department = getDepartmentName(prDept || sdDept)
-    }
+  // resolve acadServices logic
+  let acadServices = 'None'
+  if (prSvc && sdSvc && prSvc !== sdSvc) {
+    acadServices = `${getAcadServicesName(prSvc)}, ${getAcadServicesName(sdSvc)}`
+  } else if (prSvc || sdSvc) {
+    acadServices = getAcadServicesName(prSvc || sdSvc)
+  }
 
-    // resolve acadServices logic
-    let acadServices = 'None'
-    if (prSvc && sdSvc && prSvc !== sdSvc) {
-      return `${getAcadServicesName(prSvc)}, ${getAcadServicesName(sdSvc)}`
-    } else if (prSvc || sdSvc) {
-      return getAcadServicesName(prSvc || sdSvc)
-    }
+  // resolve rank logic
+  let rank = 'None'
+  if (sdRank !== null && sdRankValue !== null) {
+    rank = `${prRank} ${prRankValue}, ${sdRank} ${sdRankValue}`
+  } else if (prRank !== null && prRankValue !== null) {
+    rank = `${prRank} ${prRankValue}`
+  }
 
-    // resolve rank logic
-    let rank = 'None'
-    if (sdRank !== null && sdRankValue !== null) {
-      rank = `${prRank} ${prRankValue}, ${sdRank} ${sdRankValue}`
-    } else if (prRank !== null && prRankValue !== null) {
-      rank = `${prRank} ${prRankValue}`
-    }
-
-    return {
-      ...u,
-      college,
-      department,
-      acadServices,
-      rank
-    }
-  })
+  return {
+    ...u,
+    college,
+    department,
+    acadServices,
+    rank
+  }
+})
   loading.value = false
 }
 

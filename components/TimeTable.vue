@@ -23,6 +23,16 @@ const {
   fetchSchedules,
   onCourseSearch,
   modality,
+  isTeamTeaching,
+  facultyRows,
+  delivery,
+  startEdit,
+  saveEvent,
+  editedEventId,
+  showConfirmModal,
+  confirmPayload,
+  onCancelUpload,
+  onConfirmUpload
 } = useSchedule()
 
 const props = defineProps<{ user_auth_id: string }>()
@@ -46,8 +56,11 @@ function onModalClose() {
     day: '',
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
+    delivery: 'Conventional',
+    teamTeaching: [],
   }
 }
+
 </script>
 <template>
   <div>
@@ -88,6 +101,12 @@ function onModalClose() {
                   >
                     X
                   </UButton>
+                  <UButton
+                    class="absolute top-0 left-0 p-1 text-sm"
+                    @click="startEdit(getEvent(day, slotIndex))"
+                  >
+                    ✎
+                  </UButton>
                   <!-- Centered event info: use type instead of name -->
                   <div class="flex flex-col items-center justify-center h-full text-center">
                     <b>{{ getEvent(day, slotIndex).type }}</b>
@@ -95,6 +114,7 @@ function onModalClose() {
                       {{ getEvent(day, slotIndex).programCode }}
                       <b>{{ getCourseCode(getEvent(day, slotIndex).course) }}</b>
                     </span>
+                    <span>{{ getEvent(day, slotIndex).delivery }}</span>
                     <span>{{ getEvent(day, slotIndex).modality }}</span> 
                     <span>{{ getEvent(day, slotIndex).room }}</span>
                     <small>
@@ -114,7 +134,10 @@ function onModalClose() {
     <UModal v-model="showModal" :transition="false" @hide="onModalClose">
       <UCard class="!max-h-[60%]">
         <template #header>
-          <h2 class="text-xl font-bold">Add Schedule</h2>
+          <div class="flex justify-between">
+            <h2 class="text-xl font-bold">Add Schedule</h2>
+            <!-- <UButton variant="ghost" @click="isTeamTeaching = true">Make Team/Turn Teaching</UButton> -->
+          </div>
         </template>
         <div class="flex flex-col gap-4">
           <!-- Event Type (no name) -->
@@ -161,6 +184,41 @@ function onModalClose() {
             </div>
           </div>
 
+          <div class="flex gap-4">
+            <!-- Delivery -->
+            <div class="w-full" v-if="newEvent.delivery === 'Conventional'">
+              <label class="block mb-1 font-semibold">Delivery</label>
+              <USelect
+                v-model="newEvent.delivery"
+                :options="delivery"
+                class="w-full"
+              />
+            </div>
+            <div class="w-1/2" v-if="newEvent.delivery !== 'Conventional'">
+              <label class="block mb-1 font-semibold">Delivery</label>
+              <USelect
+                v-model="newEvent.delivery"
+                :options="delivery"
+                class="w-full"
+              />
+            </div>
+
+            <!-- Team Teaching -->
+            <div v-if="newEvent.delivery !== 'Conventional'" class="w-1/2">
+              <label class="block mb-1 font-semibold">Select Other Faculty</label>
+              <USelectMenu
+                v-model="newEvent.teamTeaching"
+                :options="facultyRows"
+                optionAttribute="name"
+                valueAttribute="user_auth_id"
+                placeholder="Search & select faculty…"
+                class="w-full"
+                multiple
+                searchable
+              />
+            </div>
+          </div>
+
           <!-- Day -->
           <div>
             <label class="block mb-1 font-semibold">Day</label>
@@ -197,8 +255,8 @@ function onModalClose() {
         </div>
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton variant="solid" @click="addEvent">
-              Add
+            <UButton variant="solid" @click="saveEvent">
+              {{ editedEventId ? 'Save' : 'Add' }}
             </UButton>
             <UButton variant="ghost" @click="cancelModal">
               Cancel
@@ -207,7 +265,19 @@ function onModalClose() {
         </template>
       </UCard>
     </UModal>
+
+    <UModal v-model="showConfirmModal">
+      <UCard>
+        <template #header><h3>Confirm Over-load</h3></template>
+        <div>
+          One or more schedules exceed the allowed hours. Proceed anyway?
+        </div>
+        <template #footer>
+          <UButton @click="onConfirmUpload">Confirm</UButton>
+          <UButton variant="ghost" @click="onCancelUpload">Cancel</UButton>
+        </template>
+      </UCard>
+    </UModal>
+
   </div>
 </template>
-
-

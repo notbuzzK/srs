@@ -269,9 +269,31 @@ onMounted(async () => {
 const onApproved = async () => {
   // loops over approvalRows and inserts each entry into facultySchedules table along with user info from selectedApproval
   for (const entry of approvalRows.value) {
+    // Check for existing schedule
+    const { data: existing, error: checkError } = await supabase
+      .from('facultySchedules')
+      .select('schedule_id')
+      .eq('faculty_id', selectedApproval.value.user_id)
+      .eq('day', entry.day)
+      .eq('start_time', entry.startTime)
+      .eq('end_time', entry.endTime)
+      .eq('schedule_type', entry.scheduleType)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking for existing schedule:', checkError);
+      continue;
+    }
+    if (existing) {
+      console.log('Duplicate schedule found, skipping insert:', existing);
+      
+      continue; // Skip duplicate
+    }
+
+    // Insert if not duplicate
     const { data, error } = await supabase
       .from('facultySchedules')
-      .upsert({
+      .insert({
         faculty_id: selectedApproval.value.user_id,
         course_id: entry.course,
         programCode: entry.course_code,
@@ -284,13 +306,13 @@ const onApproved = async () => {
         acadYear: deanInfo.value.acadYear,
         acadSem: deanInfo.value.acadSem
       })
-      .select()
+      .select();
 
     if (error) {
-      console.error('Error inserting schedule entry:', error)
-      return
+      console.error('Error inserting schedule entry:', error);
+      return;
     } else {
-      console.log('Schedule entry inserted successfully:', data)
+      console.log('Schedule entry inserted successfully:', data);
     }
   }
 
