@@ -211,7 +211,7 @@ const isOpen = ref(false)
           </template>
 
           <div>
-            <p class="text-justify">Are you sure you want to override the Academic Year and Semester? Doing so sets removes all existing schedule for this term and will not be recoverable.</p>
+            <p class="text-justify">Are you sure you want to override the Academic Year and Semester? Doing so sets removes all existing schedule for this term and moves it to Historical Schedules.</p>
           </div>
 
           <template #footer>

@@ -99,7 +99,7 @@ const newEvent = ref({
   course: '',
   modality: '',
   room: 'TBA',
-  day: 'Monday',
+  day: ['Monday'],  // default to Monday
   startTime: timeSlots[0],
   endTime: timeSlots[1],
   delivery: 'Conventional',  // default delivery mode
@@ -241,7 +241,7 @@ function addEvent() {
     course: '',
     modality: '',
     room: 'TBA',
-    day: '',
+    day: ['Monday'],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
     delivery: 'Conventional',
@@ -310,28 +310,45 @@ function getRowSpan(day: string, slotIndex: number) {
 
 
 const fullTimeConfig = {
-  semester: {
+  semestral: {
     general:         { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'VC/Dean':       { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'VD/PD/AD':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    Chair:           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'ATF/ASF':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Vice Chancellor':       { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Academic Dean':       { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'TSA Dean':       { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'SHSSHS Director':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Director':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Vice Dean':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Program Director':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Assistant Director':      { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Chair':           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Vice Chair':           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Coordinator':           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Academic Teaching Faculty':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
+    'Academic Services Faculty':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
   },
   trimestral: {
     general:         { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'VC/Dean':       { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'VD/PD/AD':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    Chair:           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'ATF/ASF':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Vice Chancellor':       { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Academic Dean':       { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'TSA Dean':       { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'SHSSHS Director':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Director':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Vice Dean':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Program Director':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Assistant Director':      { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Chair':           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Vice Chair':           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Coordinator':           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Academic Teaching Faculty':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
+    'Academic Services Faculty':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
   },
   midyear: {
     general:         { teachingLoad: Infinity, overload: Infinity, consultation: Infinity, academicPursuits: Infinity, residency: 20 },
-    // you can repeat per‐role if needed, but midyear is uniform
   }
 }
 
 const partTimeConfig = {
-  semester: {
+  semestral: {
     general:         { teachingLoad: 17, overload: 0,  consultation: 2, academicPursuits: 0, residency: 19 },
   },
   trimestral: {
@@ -348,8 +365,8 @@ function getHourColor(hour: number, designation: string, type: string, item: str
 
   // 2) Pick the right term block (normalize to lowercase key)
   // Add a check to ensure term is not null before calling toLowerCase()
-  const termKey = term ? term.toLowerCase() as 'semester' | 'trimestral' | 'midyear' : 'semester'; // Provide a default like 'semester'
-  const termCfg = cfg[termKey] || cfg.semester;
+  const termKey = term ? term.toLowerCase() as 'semestral' | 'trimestral' | 'midyear' : 'semestral'; // Provide a default like 'semester'
+  const termCfg = cfg[termKey] || cfg.semestral;
 
   // 3) Pick the bucket by designation (fall back to 'general')
   const bucket = termCfg[designation] || termCfg.general;
@@ -363,6 +380,9 @@ function getHourColor(hour: number, designation: string, type: string, item: str
   );
 
   const threshold = bucket[key];
+  // console.log('threshold', threshold)
+  // console.log('bucket', bucket)
+  // console.log('term key', termKey) 
 
   // 5) If threshold is zero, we skip the orange band:
   //    any positive hours => RED; zero or below => BLACK
@@ -383,7 +403,30 @@ function getHourColor(hour: number, designation: string, type: string, item: str
   return 'text-red-600';
 }
 
+function getOverloadHour(hour: number, designation: string, type: string, item: string, term: string){
+  // 1) Choose full-time vs part-time config
+  const cfg = item === 'Part-Time'
+    ? partTimeConfig
+    : fullTimeConfig;
 
+  // 2) Pick the right term block (normalize to lowercase key)
+  const termKey = term ? term.toLowerCase() as 'semestral' | 'trimestral' | 'midyear' : 'semestral';
+  const termCfg = cfg[termKey] || cfg.semestral;
+
+  // 3) Pick the bucket by designation (fall back to 'general')
+  const bucket = termCfg[designation] || termCfg.general;
+
+  // 4) Map your type to the config property
+  const key: keyof typeof bucket = 'residency'; // always use 'residency' key
+
+  const residency = bucket[key];
+  const overloadHours = hour - residency;
+  if (overloadHours >= 0 ){
+    return overloadHours;
+  } else {
+    return 0
+  }
+}
 
 // Computed total hours (each slot = 0.5 hrs)
 const teachingHours = computed(() =>
@@ -409,6 +452,7 @@ const chHours = computed(() =>
 const totalHours = computed(() =>
   events.value.reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
+let overloadHours = ref<any>();
 
 function cancelModal() {
   showModal.value = false
@@ -418,7 +462,7 @@ function cancelModal() {
     course: '',
     modality: '',
     room: 'TBA',
-    day: 'Monday',
+    day: ['Monday'],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
     delivery: 'Conventional',
@@ -431,7 +475,6 @@ async function fetchSchedules(user_auth_id: string) {
 
   if (!acadYear.value || !acadSem.value) {
     console.warn('Academic year or term not set, skipping schedule fetch.')
-
     return
   }
 
@@ -468,63 +511,92 @@ async function fetchSchedules(user_auth_id: string) {
 }
 
 function saveEvent() {
-  const startIndex  = otherTimeSlots.indexOf(newEvent.value.startTime)
-  const endIndex    = otherTimeSlots.indexOf(newEvent.value.endTime)
+  const daysArray = Array.isArray(newEvent.value.day) ? newEvent.value.day : [newEvent.value.day];
+  const startIndex = otherTimeSlots.indexOf(newEvent.value.startTime);
+  const endIndex = otherTimeSlots.indexOf(newEvent.value.endTime);
 
   if (editedEventId.value !== null) {
-    // ——— UPDATE existing event ———
-    const idx = events.value.findIndex(e => e.id === editedEventId.value)
-    if (idx === -1) return
+    // Only allow editing for a single day event for now
+    const idx = events.value.findIndex(e => e.id === editedEventId.value);
+    if (idx === -1) return;
+
+    // Check for local conflicts (excluding the event being edited)
+    const conflict = events.value.find((evt, i) =>
+      i !== idx &&
+      evt.day === daysArray[0] &&
+      startIndex < evt.endIndex &&
+      endIndex > evt.startIndex
+    );
+    if (conflict) {
+      alert(`This event conflicts with an existing event on ${daysArray[0]}.`);
+      return;
+    }
+
     Object.assign(events.value[idx], {
       type:         newEvent.value.type,
       programCode:  newEvent.value.programCode,
       course:       newEvent.value.course,
       room:         newEvent.value.room,
-      day:          newEvent.value.day,
+      day:          daysArray[0], // Only first day for edit
       startIndex,
       endIndex,
       displayStart: newEvent.value.startTime,
       displayEnd:   newEvent.value.endTime,
       delivery:     newEvent.value.delivery,
       teamTeaching: [...newEvent.value.teamTeaching],
-      isEdited:     true,   // mark for update
-    })
+      isEdited:     true,
+    });
   } else {
-    // ——— INSERT new event ———
-    const eventToAdd = {
-      id:            Date.now(),
-      faculty_id:    userId.value,
-      department_id: primaryDept.value,
-      name:          newEvent.value.type,
-      type:          newEvent.value.type,
-      programCode:   newEvent.value.programCode,
-      course:        newEvent.value.course,
-      room:          newEvent.value.room,
-      day:           newEvent.value.day,
-      startIndex,
-      endIndex,
-      displayStart:  newEvent.value.startTime,
-      displayEnd:    newEvent.value.endTime,
-      acadYear:      acadYear.value,
-      acadSem:       acadSem.value,
-      delivery:      newEvent.value.delivery,
-      teamTeaching:  [...newEvent.value.teamTeaching],
-      isNew:         true,
-      isEdited:      false,
+    // Check for conflicts for each selected day
+    for (const day of daysArray) {
+      const conflict = events.value.find(evt =>
+        evt.day === day &&
+        startIndex < evt.endIndex &&
+        endIndex > evt.startIndex
+      );
+      if (conflict) {
+        alert(`The selected date/time slot has already been taken for ${day}.`);
+        return;
+      }
     }
-    events.value.push(eventToAdd)
+
+    // Insert a new event for each selected day
+    for (const day of daysArray) {
+      const eventToAdd = {
+        id:            Date.now() + Math.random(), // ensure unique id
+        faculty_id:    userId.value,
+        department_id: primaryDept.value,
+        name:          newEvent.value.type,
+        type:          newEvent.value.type,
+        programCode:   newEvent.value.programCode,
+        course:        newEvent.value.course,
+        room:          newEvent.value.room,
+        day:           day,
+        startIndex:    startIndex,
+        endIndex:      endIndex,
+        displayStart:  newEvent.value.startTime,
+        displayEnd:    newEvent.value.endTime,
+        acadYear:      acadYear.value,
+        acadSem:       acadSem.value,
+        delivery:      newEvent.value.delivery,
+        teamTeaching:  [...newEvent.value.teamTeaching],
+        isNew:         true,
+        isEdited:      false,
+      };
+      events.value.push(eventToAdd);
+    }
   }
 
   // reset everything
-  editedEventId.value = null
-  showModal.value     = false
+  editedEventId.value = null;
+  showModal.value     = false;
   newEvent.value      = {
     type: '',
     programCode: '',
     course: '',
     modality: '',
     room: 'TBA',
-    day: '',
+    day: ['Monday'],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
     delivery: 'Conventional',
@@ -612,7 +684,7 @@ async function onSubmit() {
 
   // 2) Conflict‐check times for all…
   for (const evt of [...toInsert, ...toUpdate]) {
-    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])]))
+    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])])) // extracts all faculty id
     const { day, displayStart: start, displayEnd: end } = evt
 
     const { data: overlaps, error: overlapErr } = await supabase
@@ -624,6 +696,7 @@ async function onSubmit() {
 
     if (overlapErr) {
       console.error('Conflict‐check error', overlapErr)
+      alert('Conflict‐check error' + JSON.stringify(overlapErr))
       return
     }
     if (overlaps.length) {
@@ -719,7 +792,33 @@ async function onSubmit() {
   console.log('Insert payload:', JSON.stringify(insertPayload, null, 2));
   console.log('Update payload:', JSON.stringify(updatePayload, null, 2));
 
-  // 5) If any threshold was breached, pause for confirmation:
+  // 5) check if events goes against faculty availability time
+  const { data: availability, error: availabilityError } = await supabase
+    .from('facultyAvailability')
+    .select('day, start_time, end_time')
+    .eq('faculty_id', userId.value)
+  if (availabilityError) {
+    console.error('Availability check error:', availabilityError)
+    alert('Availability check error: ' + JSON.stringify(availabilityError))
+    return
+  }
+  for (const evt of toInsert) {
+    const day = evt.day
+    const start = evt.displayStart
+    const end = evt.displayEnd
+    // Only allow if there is at least one availability that fully covers the event
+    const isAvailable = availability.some(a =>
+      a.day === day &&
+      a.start_time <= start &&
+      a.end_time >= end
+    )
+    if (!isAvailable) {
+      alert(`Event on ${day} from ${start} to ${end} is OUTSIDE faculty availability.`)
+      return
+    }
+  }
+
+  // 6) If any threshold was breached, pause for confirmation:
   if (requiresConfirmation) {
     confirmPayload.value = {
       insert: insertPayload,
@@ -729,7 +828,7 @@ async function onSubmit() {
     return   // wait for user to confirm
   }
 
-  // 6) Otherwise go ahead and upload immediately
+  // 7) Otherwise go ahead and upload immediately
   if (insertPayload.length) {
     const { error: insertError } = await supabase.from('facultySchedules').insert(insertPayload)
     if (insertError) {
@@ -800,6 +899,7 @@ export function useSchedule() {
     showConfirmModal,
     confirmPayload,
     onCancelUpload,
-    onConfirmUpload
+    onConfirmUpload,
+    getOverloadHour
   }
 }

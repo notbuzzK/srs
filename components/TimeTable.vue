@@ -53,7 +53,7 @@ function onModalClose() {
     course: '',
     modality: '',
     room: 'TBA',
-    day: '',
+    day: ['Monday'],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
     delivery: 'Conventional',
@@ -222,7 +222,8 @@ function onModalClose() {
           <!-- Day -->
           <div>
             <label class="block mb-1 font-semibold">Day</label>
-            <USelect
+            <USelectMenu
+              multiple
               v-model="newEvent.day"
               :options="days"
               placeholder="Select Day"
@@ -268,9 +269,9 @@ function onModalClose() {
 
     <UModal v-model="showConfirmModal">
       <UCard>
-        <template #header><h3>Confirm Over-load</h3></template>
+        <template #header><h3>Confirm Overload</h3></template>
         <div>
-          One or more schedules exceed the allowed hours. Proceed anyway?
+          The schedule exceeds the allowed residency hours. Proceed anyway?
         </div>
         <template #footer>
           <UButton @click="onConfirmUpload">Confirm</UButton>
@@ -278,6 +279,5 @@ function onModalClose() {
         </template>
       </UCard>
     </UModal>
-
   </div>
 </template>

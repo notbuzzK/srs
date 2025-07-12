@@ -1,9 +1,5 @@
 <script setup lang="ts">
 const supabase = useNuxtApp().$supabase;
-const userId = ref<any>('')
-const name = useNameStore()
-const designation = useDesignationStore()
-const isOpenOverrideModal = ref(false)
 
 const {
   showModal,
@@ -16,14 +12,33 @@ const {
   totalHours,
   acadYear,
   acadSem,
-  semesterType
+  semesterType,
+  getHourColor,
+  getOverloadHour,
 } = useSchedule()
+
+const { data: { user } } = await supabase.auth.getUser()
+const userId = user?.id || '';
+const facultyInfo = ref<any>({})
+
+const getFacultyInfo = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('user_auth_id', userId
+    )
+  if (error) {
+    console.error('Error fetching faculty info:', error.message)
+  } else {
+    facultyInfo.value = data[0] || {}
+  }
+}
 
 const getCurrectAcadYear = async () => {
   const { data, error } = await supabase
   .from('users')
   .select('acadYear')
-  .eq('user_auth_id', userId.value)
+  .eq('user_auth_id', userId)
 
   if ( error ) {
     console.error('Error fetching current academic year:', error.message)
@@ -36,7 +51,7 @@ const getCurrentTerm = async () => {
   const { data, error } = await supabase
     .from('users')
     .select('acadSem')
-    .eq('user_auth_id', userId.value)
+    .eq('user_auth_id', userId)
 
   if (error) {
     console.error('Error fetching current term:', error.message)
@@ -45,12 +60,23 @@ const getCurrentTerm = async () => {
   }
 }
 
+const getCurrentSemesterType = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('semester_type')
+    .eq('user_auth_id', userId)
+
+  if (error) {
+    console.log('Error fetching current semester type:', error.message)
+  } else {
+    semesterType.value = data[0].semester_type
+  }
+}
+
 onMounted(async ()=> {
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  userId.value = user?.id
   await getCurrectAcadYear()
   await getCurrentTerm()
+  await getCurrentSemesterType()
   if (!acadYear.value || !acadSem.value) {
     alert('Add academic year, term and semester type first before adding any schedule')
   }
@@ -96,29 +122,45 @@ onMounted(async ()=> {
               <div class="flex justify-between mb-2">
                 <div>
                   <p class="font-bold">Academic Year: </p>
+                  <p class="font-bold">Semester Type: </p>
                   <p class="font-bold">Semester: </p>
                 </div>
                 <div class="text-right">
                   <p>{{ acadYear }}</p>
+                  <p>{{ semesterType }}</p>
                   <p>{{ acadSem }}</p>
                 </div>
               </div>
 
-              <div class="flex justify-between">
+               <div class="flex justify-between mb-4">
                 <div>
-                  <p class="font-bold">Total Hours: </p>
-                  <p>Teaching Hours: </p>
-                  <p>AW Hours: </p>
-                  <p>ARP Hours: </p>
-                  <p>CH Hours: </p>
+                  <div class="text-sm">
+                    <p>ATF/ASF Load: </p>
+                    <p>Consulations:</p>
+                    <p>ARP:</p>
+                    <p>AW:</p>
+                  </div>
                 </div>
                 
                 <div class="text-right">
-                  <p class="font-bold">{{ totalHours }} hrs</p>
-                  <p>{{ teachingHours }} hrs</p>
-                  <p>{{ awHours }} hrs</p>
-                  <p>{{ arpHours }} hrs</p>
-                  <p>{{ chHours }} hrs</p>
+                  <div class="text-sm">
+                    <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
+                    <p>{{ awHours }} hrs</p>
+                    <p :class="getHourColor(arpHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
+                    <p :class="getHourColor(chHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex justify-between">
+                <div>
+                  <p class="font-bold">Residency</p>
+                  <p class="font-bold">Overload</p>
+                </div>
+                
+                <div class="text-right">
+                  <p :class="getHourColor(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">{{ totalHours }} hrs</p>
+                  <p>{{ getOverloadHour(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType) }} hrs</p>
                 </div>
               </div>
             </div>

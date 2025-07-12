@@ -18,7 +18,8 @@ const {
   semesterType,
   isTeamTeaching,
   facultyRows,
-  fetchSchedules
+  fetchSchedules,
+  getOverloadHour
 } = useSchedule()
 
 const {
@@ -188,7 +189,7 @@ const getAvailabilityTime = async () => {
   const { data, error } = await supabase
     .from('facultyAvailability')
     .select('*')
-    .eq('faculty_id', facultyInfo.value.user_id)
+    .eq('faculty_id', facultyInfo.value.user_auth_id)
 
     if (error) {
       console.error('Error fetching faculty availability:', error.message)
@@ -422,33 +423,50 @@ const paginatedRows = computed(() => {
 
       <div class="">
         <h1 class="text-[#017C35] font-bold text-xl">Summary</h1>
+        <!-- <p class="text-sm text-gray-500">hours/week</p> -->
         
-        <div class="flex justify-between mb-2">
+        <div class="flex justify-between mb-4">
           <div>
             <p class="font-bold">Academic Year: </p>
+            <p class="font-bold">Semester Type: </p>
             <p class="font-bold">Semester: </p>
           </div>
           <div class="text-right">
             <p>{{ acadYear }}</p>
+            <p>{{ semesterType }}</p>
             <p>{{ acadSem }}</p>
           </div>
         </div>
 
-        <div class="flex justify-between">
+        <div class="flex justify-between mb-4">
           <div>
-            <p class="font-bold">Total Hours: </p>
-            <p>Teaching Hours: </p>
-            <p>AW Hours: </p>
-            <p>ARP Hours: </p>
-            <p>CH Hours: </p>
+            <div class="text-sm">
+              <p>ATF/ASF Load: </p>
+              <p>Consulations:</p>
+              <p>ARP:</p>
+              <p>AW:</p>
+            </div>
           </div>
           
           <div class="text-right">
-            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">{{ totalHours }} hrs</p>
-            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
-            <p>{{ awHours }} hrs</p>
-            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
-            <p :class="getHourColor(teachingHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
+            <div class="text-sm">
+              <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
+              <p>{{ awHours }} hrs</p>
+              <p :class="getHourColor(arpHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
+              <p :class="getHourColor(chHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-between">
+          <div>
+            <p class="font-bold">Residency</p>
+            <p class="font-bold">Overload</p>
+          </div>
+          
+          <div class="text-right">
+            <p :class="getHourColor(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">{{ totalHours }} hrs</p>
+            <p>{{ getOverloadHour(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType) }} hrs</p>
           </div>
         </div>
       </div>
@@ -463,7 +481,7 @@ const paginatedRows = computed(() => {
           <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
         </div>
         <UButton variant="solid" class="bg-[#017C35] text-white" @click="">Suggest Schedule (not working yet)</UButton>
-        <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule</UButton>
+        <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule to database</UButton>
       </div>
 
       <!-- Space for additional content -->

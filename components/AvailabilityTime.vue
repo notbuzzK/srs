@@ -6,8 +6,7 @@ const toast = useToast()
 const isOpen = ref(false)
 
 const { data: { user } } = await supabase.auth.getUser()
-
-const user_id = ref('')
+const user_id = user?.id || '';
 
 // Define time slots (half-hour intervals)
 const timeSlots = [
@@ -59,48 +58,37 @@ const newTimeSlot = ref({
 const timeSlotsAdded = ref<any[]>([])
 
 onMounted(async () => {
-  await getUserID()
   // Fetch existing time slots
-  const { data: timeSlots, error } = await supabase
-    .from('facultyAvailability')
-    .select('availability_id, day, start_time, end_time')
-    .eq('faculty_id', user_id.value)
-
-  if (error) {
-    console.error('Error fetching time slots:', error.message)
-  } else {
-    timeSlotsAdded.value = timeSlots.map((slot) => ({
-      day: slot.day,
-      start: slot.start_time,
-      end: slot.end_time,
-    }));
-  }
+  await getAvailability()
 })
 
-  const getUserID = async () => {
-    let { data: users, error } = await supabase
-      .from('users')
-      .select('user_id')
-      .eq('email', user?.email)
-      
-      if (error) {
-        console.error('Error fetching user id:', error.message)
-      } else {
-        user_id.value = users?.[0].user_id
-      }
+const getAvailability = async () => {
+  const { data, error } = await supabase
+    .from('facultyAvailability')
+    .select('*')
+    .eq('faculty_id', user_id)
+
+  if (error) {
+    console.error('Error fetching availability:', error)
+  } else {
+    timeSlotsAdded.value = data.map(slot => ({
+      availability_id: slot.availability_id,
+      day: slot.day,
+      start: slot.start_time,
+      end: slot.end_time
+    }))
   }
+}
 
 // Add new time slot to the array and reset the form
 const onAddTimeSlot = async () => {
   console.log('Adding time slot:', newTimeSlot.value);
 
   if (newTimeSlot.value.day && newTimeSlot.value.start && newTimeSlot.value.end) {
-    await getUserID();
-
     const { data, error } = await supabase
       .from('facultyAvailability')
       .insert([{
-        faculty_id: user_id.value,
+        faculty_id: user_id,
         day: newTimeSlot.value.day,
         start_time: newTimeSlot.value.start,
         end_time: newTimeSlot.value.end

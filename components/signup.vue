@@ -575,7 +575,7 @@ onMounted(async () => {
                   </UFormGroup>
                 </div>
                 <div class="w-1/2">
-                  <UFormGroup label="Rank Value" name="rank value" required>
+                  <UFormGroup label="Rank Step" name="rank value" required>
                     <USelect
                       v-model="primaryForm.pr_rankValue"
                       :options="range"
@@ -632,7 +632,7 @@ onMounted(async () => {
                   </UFormGroup>
                 </div>
                 <div class="w-1/2">
-                  <UFormGroup label="Rank Value" name="rank value" required>
+                  <UFormGroup label="Rank Step" name="rank value" required>
                     <USelect
                       v-model="secondaryForm.sd_rankValue"
                       :options="range"
