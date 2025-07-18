@@ -98,11 +98,11 @@ const newEvent = ref({
   programCode: '',
   course: '',
   modality: '',
-  room: 'TBA',
-  day: ['Monday'],  // default to Monday
+  room: '',
+  day: [], 
   startTime: timeSlots[0],
   endTime: timeSlots[1],
-  delivery: 'Conventional',  // default delivery mode
+  delivery: '',  // default delivery mode
   teamTeaching: [] as string[],  // will hold user_auth_id[] of other faculty
 })
 
@@ -240,11 +240,11 @@ function addEvent() {
     programCode: '',
     course: '',
     modality: '',
-    room: 'TBA',
-    day: ['Monday'],
+    room: '',
+    day: [],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
-    delivery: 'Conventional',
+    delivery: '',
     teamTeaching: [],
   };
 }
@@ -270,6 +270,7 @@ async function deleteEvent(id: number) {
   } else {
     console.log('Event deleted successfully')
     await fetchSchedules(userId.value)
+    alert('Event deleted successfully')
   }
   // toast.add({ title: 'Deleting event with ID: ' + id, color: 'red'})
 }
@@ -359,7 +360,7 @@ const partTimeConfig = {
 // colors for different hours
 function getHourColor(hour: number, designation: string, type: string, item: string, term: string){
   // 1) Choose full-time vs part-time config
-  const cfg = item === 'Part-Time'
+  const cfg: any = item === 'Part-Time'
     ? partTimeConfig
     : fullTimeConfig;
 
@@ -405,7 +406,7 @@ function getHourColor(hour: number, designation: string, type: string, item: str
 
 function getOverloadHour(hour: number, designation: string, type: string, item: string, term: string){
   // 1) Choose full-time vs part-time config
-  const cfg = item === 'Part-Time'
+  const cfg: any = item === 'Part-Time'
     ? partTimeConfig
     : fullTimeConfig;
 
@@ -461,11 +462,11 @@ function cancelModal() {
     programCode: '',
     course: '',
     modality: '',
-    room: 'TBA',
-    day: ['Monday'],
+    room: '',
+    day: [],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
-    delivery: 'Conventional',
+    delivery: '',
     teamTeaching: [],
   };
 }
@@ -515,10 +516,17 @@ function saveEvent() {
   const startIndex = otherTimeSlots.indexOf(newEvent.value.startTime);
   const endIndex = otherTimeSlots.indexOf(newEvent.value.endTime);
 
+  // make sure that atleast one day is selected
+  if(daysArray.length === 0) {
+    alert('Please select at least one day.');
+    return;
+  }
+  
   if (editedEventId.value !== null) {
     // Only allow editing for a single day event for now
     const idx = events.value.findIndex(e => e.id === editedEventId.value);
     if (idx === -1) return;
+
 
     // Check for local conflicts (excluding the event being edited)
     const conflict = events.value.find((evt, i) =>
@@ -595,11 +603,11 @@ function saveEvent() {
     programCode: '',
     course: '',
     modality: '',
-    room: 'TBA',
-    day: ['Monday'],
+    room: '',
+    day: [],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
-    delivery: 'Conventional',
+    delivery: '',
     teamTeaching: [],
   };
 }
@@ -673,6 +681,15 @@ function onCancelUpload() {
   showConfirmModal.value = false
   confirmPayload.value   = null
   // leave events[] intact so they can be edited
+}
+
+function timeToMinutes(time: string): number {
+  // Supports '07:00 AM', '12:30 PM', etc.
+  const [hmm, ampm] = time.split(' ')
+  let [h, m] = hmm.split(':').map(Number)
+  if (ampm === 'PM' && h !== 12) h += 12
+  if (ampm === 'AM' && h === 12) h = 0
+  return h * 60 + m
 }
 
 async function onSubmit() {
@@ -802,19 +819,24 @@ async function onSubmit() {
     alert('Availability check error: ' + JSON.stringify(availabilityError))
     return
   }
-  for (const evt of toInsert) {
-    const day = evt.day
-    const start = evt.displayStart
-    const end = evt.displayEnd
-    // Only allow if there is at least one availability that fully covers the event
-    const isAvailable = availability.some(a =>
-      a.day === day &&
-      a.start_time <= start &&
-      a.end_time >= end
-    )
-    if (!isAvailable) {
-      alert(`Event on ${day} from ${start} to ${end} is OUTSIDE faculty availability.`)
-      return
+  if (!availability || availability.length === 0) {
+    // No availability set for faculty, skip this check
+    console.warn('No faculty availability set, skipping availability check.');
+  } else {
+    for (const evt of toInsert) {
+      const day = evt.day
+      const start = evt.displayStart
+      const end = evt.displayEnd
+      // Only allow if there is at least one availability that fully covers the event
+      const isAvailable = availability.some(a =>
+        a.day === day &&
+        timeToMinutes(a.start_time) <= timeToMinutes(start) &&
+        timeToMinutes(a.end_time) >= timeToMinutes(end)
+      )
+      if (!isAvailable) {
+        alert(`Event on ${day} from ${start} to ${end} is OUTSIDE faculty availability.`)
+        return
+      }
     }
   }
 

@@ -27,12 +27,29 @@ const columns = [{
 }]
 
 
+const { data: { user } } = await supabase.auth.getUser()
+const user_id = user?.id || '';
 const q = ref('')
 const page = ref(1)
 const pageCount = 6
+const userInfo = ref<any>(null)
 
 // TODO: find out how to decrease row height
 // TODO: make row count responsive
+
+const getUserUnit = async () => {
+  const { data, error } = await supabase
+   .from('users')
+   .select('pr_college_id, pr_department_id, pr_acadServices_id')
+   .eq('user_auth_id', user_id)
+
+  if (error) {
+    console.log('Error fetching user row: ', error.message)
+  } else {
+    userInfo.value = data[0]
+    console.log(userInfo.value)
+  }
+}
 
 const filteredRows = computed(() => {
   if (!q.value) return courses.value 
@@ -52,15 +69,33 @@ const paginatedRows = computed(() => {
 const courses = ref<any[]>([])
 
 const getCourse = async () => {
-  const { data, error } = await supabase
-  .from('courses')
-  .select('*')
+  const conditions: string[] = [];
+
+  // Add conditions for each pr_ column if they are not null
+  if (userInfo.value.pr_college_id != null) {
+    conditions.push(`pr_college_id.eq.${userInfo.value.pr_college_id}`);
+  }
+  if (userInfo.value.pr_acadServices_id != null) {
+    conditions.push(`pr_academicServices_id.eq.${userInfo.value.pr_acadServices_id}`);
+  }
+  if (userInfo.value.pr_department_id != null) {
+    conditions.push(`pr_department_id.eq.${userInfo.value.pr_department_id}`);
+  }
+
+  // Create the query
+  let query = supabase.from('courses').select('*');
+
+  // Apply conditions if any exist
+  if (conditions.length > 0) {
+    query = query.or(conditions.join(','));
+  }
+
+  const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching courses:', error.message)
-    courses.value = []
+    console.error('Error fetching courses:', error);
   } else {
-    courses.value = data
+    courses.value = data || [];
   }
 }
 
@@ -89,22 +124,36 @@ const deleteCourse = async (course: any) => {
       getCourse()
       toast.add({ title: 'Course Deleted!', color: 'red' })
     }
-
 }
 
 const courseInfo = ref({
-  course_id: undefined,
-  courseCode: undefined,
-  courseTitle: undefined,
-  courseHours: undefined,
-  courseUnits: undefined,
+  course_id: 0,
+  courseCode: '',
+  courseTitle: '',
+  courseHours: 0,
+  courseUnits: 0,
 })
 
 const onSubmit = async () => {
-  const { $supabase } = useNuxtApp();
+  // duplicate check
+  const { data: duplicates, error: dupErr } = await supabase
+    .from('courses')
+    .select('course_id')
+    .or(`course_code.eq.${courseInfo.value.courseCode},course_title.eq.${courseInfo.value.courseTitle}`)
+    .neq('course_id', courseInfo.value.course_id || 0) // exclude current course if editing
+
+  if (dupErr) {
+    console.error('Duplicate check error:', dupErr.message)
+    toast.add({ title: 'Error checking duplicates', color: 'red' })
+    return
+  }
+  if (duplicates && duplicates.length > 0) {
+    toast.add({ title: 'Duplicate course code or title found!', color: 'red' })
+    return
+  }
 
   if (!courseInfo.value.course_id) {
-    const { data, error } = await $supabase
+    const { data, error } = await supabase
     .from('courses')
     .insert([
       {
@@ -112,10 +161,13 @@ const onSubmit = async () => {
         course_title: courseInfo.value.courseTitle,
         hours: courseInfo.value.courseHours,
         units: courseInfo.value.courseUnits,
+        pr_college_id: userInfo.value.pr_college_id,
+        pr_department_id: userInfo.value.pr_department_id,
+        pr_acadServices_id: userInfo.value.pr_acadServices_id
       }
     ])
-    .select(); // This will return the upserted row(s)
-
+    .select();
+    
     if (error) {
       console.error('Error inserting course:', error.message); 
     } else {
@@ -125,18 +177,21 @@ const onSubmit = async () => {
     }
 
   } else {
-    const { data, error } = await $supabase
-      .from('courses')
-      .upsert([
-        {
-          course_id: courseInfo.value.course_id,
-          course_code: courseInfo.value.courseCode,
-          course_title: courseInfo.value.courseTitle,
-          hours: courseInfo.value.courseHours,
-          units: courseInfo.value.courseUnits,
-        }
-      ])
-      .select(); // This will return the upserted row(s)
+    const { data, error } = await supabase
+    .from('courses')
+    .upsert([
+      {
+        course_id: courseInfo.value.course_id,
+        course_code: courseInfo.value.courseCode,
+        course_title: courseInfo.value.courseTitle,
+        hours: courseInfo.value.courseHours,
+        units: courseInfo.value.courseUnits,
+        pr_college_id: userInfo.value.pr_college_id,
+        pr_department_id: userInfo.value.pr_department_id,
+        pr_acadServices_id: userInfo.value.pr_acadServices_id
+      }
+    ])
+    .select();
     
     if (error) {
       console.error('Error upserting course:', error.message);
@@ -150,18 +205,19 @@ const onSubmit = async () => {
 
 const clearInput = () => {
   courseInfo.value = {
-    course_id: undefined,
-    courseCode: undefined,
-    courseTitle: undefined,
-    courseHours: undefined,
-    courseUnits: undefined
+    course_id: 0,
+    courseCode: '',
+    courseTitle: '',
+    courseHours: 0,
+    courseUnits: 0,
   }
 }
 
 const isOpen = ref(false)
 
-onMounted(() => {
-  getCourse()
+onMounted(async () => {
+  await getUserUnit()
+  await getCourse()
 })
 
 </script>

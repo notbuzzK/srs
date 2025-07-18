@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const supabase = useNuxtApp().$supabase;
 import { useNuxtApp } from '#app'
+import { LazyUTable } from '#components';
 const toast = useToast()
 
 const { 
@@ -73,6 +74,7 @@ const selectedApproval = ref<any>(null) // *** CHANGED: store full approval reco
 const requestedMemberInfo = ref<any>(null) // *** CHANGED: store member's name & unit
 const loading = ref(false)
 const isToggled = ref(false)
+const approvalId = ref(0)
 
 const q = ref('')
 const page = ref(1)
@@ -158,6 +160,7 @@ const getAllApprovals = async () => {
     console.error('Error fetching approvals:', error);
   } else {
     approvalList.value = data || [];
+    console.log('approvalList: ', approvalList.value)
   }
 }
 
@@ -203,31 +206,38 @@ const getBorrowerList = async () => {
 // When you click the “Eye” icon, load that approval’s schedule entries
 // and also fetch the requested member’s name & primary unit for the Details panel
 const loadApprovals = async (approval_id: number) => {
+  console.log('Received approval id: ', approval_id)
   // Find the matching approval record
-  const approval = approvalList.value.find((a: any) => a.id === approval_id)
+  const approval = approvalList.value.find((a: any) => a.id === approval_id) || sentRequestsList.value.find((a: any) => a.id === approval_id)
   if (!approval) {
     approvalRows.value = []
     selectedApproval.value = null
     requestedMemberInfo.value = null
+    console.log('No matching approval found')
     return
   }
 
   // *** CHANGED: Set approvalRows to the JSONB array directly ***
   approvalRows.value =  approval.work_time_schedule || []
+  
 
   // Fetch course codes for each item in approvalRows
   approvalRows.value = await Promise.all(
     approvalRows.value.map(async (row) => {
-      const { data, error } = await supabase
-        .from('courses')
-        .select('course_code')
-        .eq('course_id', row.course)
-        .single()
-
-      console.log('data: ', data, 'error: ', error)
-      return {
-        ...row,
-        course_code: error ? null : data?.course_code ?? null
+      if (!row.course) return row
+      else {
+        const { data, error } = await supabase
+          .from('courses')
+          .select('course_code')
+          .eq('course_id', row.course)
+          .single()
+  
+        // console.log('row.course: ',row.course)
+        // console.log('data: ', data, 'error: ', error)
+        return {
+          ...row,
+          course_code: data?.course_code
+        }
       }
     })
   )
@@ -236,26 +246,46 @@ const loadApprovals = async (approval_id: number) => {
   selectedApproval.value = approval
 
   // *** CHANGED: Fetch the requested member’s info ***
+  if (!isReceived.value) {
+    // For sent requests, fetch the recipient dean info
+    const { data: deanData, error: deanErr } = await supabase
+      .from('users')
+      .select('name, pr_college_id, pr_department_id, pr_acadServices_id')
+      .eq('user_auth_id', approval.borrowing_dean_id)
+      .single()
+    if (!deanErr && deanData) {
+      selectedApproval.value.dean_name = deanData.name
+      if (deanData.pr_department_id != null) {
+        selectedApproval.value.dean_unit = getDepartmentName(deanData.pr_department_id)
+      } else if (deanData.pr_college_id != null) {
+        selectedApproval.value.dean_unit = getCollegeName(deanData.pr_college_id)
+      } else {
+        selectedApproval.value.dean_unit = getAcadServicesName(deanData.pr_acadServices_id)
+      }
+    } else {
+      selectedApproval.value.dean_name = 'Unknown'
+      selectedApproval.value.dean_unit = 'Unknown'
+    }
+  }
+  // Fetch requested member info for both received and sent requests
   const { data: memberData, error: memberErr } = await supabase
     .from('users')
     .select('name, pr_college_id, pr_department_id, pr_acadServices_id')
     .eq('user_auth_id', approval.user_id)
     .single()
 
-  if (memberErr || !memberData) {
-    requestedMemberInfo.value = { name: 'Unknown', unit: 'Unknown' }
-  } else {
-    const info: any = { name: memberData.name }
-    if (memberData.pr_department_id != null) {
-      info.unit = getDepartmentName(memberData.pr_department_id)
-    } else if (memberData.pr_college_id != null) {
-      info.unit = getCollegeName(memberData.pr_college_id)
-    } else {
-      info.unit = getAcadServicesName(memberData.pr_acadServices_id)
+  if (!memberErr && memberData) {
+    requestedMemberInfo.value = {
+      name: memberData.name,
+      unit:
+        memberData.pr_department_id != null
+          ? getDepartmentName(memberData.pr_department_id)
+          : memberData.pr_college_id != null
+          ? getCollegeName(memberData.pr_college_id)
+          : getAcadServicesName(memberData.pr_acadServices_id)
     }
-    requestedMemberInfo.value = info
-
-    await getBorrowerInfo()
+  } else {
+    requestedMemberInfo.value = { name: 'Unknown', unit: 'Unknown' }
   }
 }
 
@@ -268,7 +298,9 @@ onMounted(async () => {
 
 const onApproved = async () => {
   // loops over approvalRows and inserts each entry into facultySchedules table along with user info from selectedApproval
+  // console.log('dean info', deanInfo.value)
   for (const entry of approvalRows.value) {
+    console.log('entry: ', entry)
     // Check for existing schedule
     const { data: existing, error: checkError } = await supabase
       .from('facultySchedules')
@@ -290,22 +322,24 @@ const onApproved = async () => {
       continue; // Skip duplicate
     }
 
+    const payload = {
+      faculty_id: selectedApproval.value.user_id,
+      course_id: entry.course || null,
+      programCode: entry.course_code,
+      day: entry.day,
+      schedule_type: entry.scheduleType,
+      start_time: entry.startTime,
+      end_time: entry.endTime,
+      room: entry.room,
+      modality: entry.modality,
+      acadYear: deanInfo.value.acadYear,
+      acadSem: deanInfo.value.acadSem
+    }
+    // console.log('payload: ', payload)
     // Insert if not duplicate
     const { data, error } = await supabase
       .from('facultySchedules')
-      .insert({
-        faculty_id: selectedApproval.value.user_id,
-        course_id: entry.course,
-        programCode: entry.course_code,
-        day: entry.day,
-        schedule_type: entry.scheduleType,
-        start_time: entry.startTime,
-        end_time: entry.endTime,
-        room: entry.room,
-        modality: entry.modality,
-        acadYear: deanInfo.value.acadYear,
-        acadSem: deanInfo.value.acadSem
-      })
+      .insert(payload)
       .select();
 
     if (error) {
@@ -347,7 +381,7 @@ const onApproved = async () => {
   }
 
   toast.add({ title: 'Faculty borrow request approved!', color: 'green' })
-  await getAllApprovals()
+  await loadApprovals(approvalId.value)
 }
 
 const onRejected = async () => {
@@ -366,7 +400,87 @@ const onRejected = async () => {
   }
 }
 
-// TODO: figure out why this doesnt work
+const resetForm = () => {
+  selectedApproval.value = {}
+  approvalRows.value = []
+  requestedMemberInfo.value = {}
+  borrowerList.value = []
+}
+
+const deleteRequest = async (id: number) => {
+  const { error } = await supabase
+    .from('informationApprovals')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting request:', error)
+    return
+  } else {
+    toast.add({ title: 'Request deleted successfully: ', color: 'green' })
+    console.log('request with id: ', id, ' deleted successfully')
+    await getAllApprovals()
+  }
+}
+
+// sent requests
+const isReceived = ref(true)
+const sentRequestsList = ref<any>([])
+const isDisabledRequeset = ref(true)
+const isDisabledNote = ref(false)
+const sentColumns = [{
+  key: 'request_id',
+  label: 'No.',
+  sortable: true,
+},  {
+  key: 'approval_status',
+  label: 'Status',
+  sortable: true,
+}, {
+  key: 'actions',
+  label: '',
+}]
+watch(isReceived, async () => {
+  if (!isReceived.value) {
+    await getSentRequests()
+    isDisabledRequeset.value = false
+    isDisabledNote.value = true
+  } else {
+    await getAllApprovals()
+    await getBorrowerList()
+    isDisabledRequeset.value = true
+    isDisabledNote.value = false
+  }
+})
+
+const getSentRequests = async ()=> {
+  const { data, error } = await supabase
+    .from('informationApprovals')
+    .select('*')
+    .eq('borrowing_dean_id', userid)
+
+  if (error) {
+    console.error('Error fetching sent requests:', error)
+    return
+  } else {
+    sentRequestsList.value = data
+    sentRequestsList.value = sentRequestsList.value.map((request: any, i: number) => {
+      request.created_at = request.created_at.slice(0,10)
+      return {
+        ...request,
+        request_id: i+1
+      }
+    })
+    /* for (const request of sentRequestsList.value) {
+      request.created_at = request.created_at.slice(0,10)
+      request.id = i
+      i++
+    }  */
+    console.log('sentRequests: ', sentRequestsList.value)
+  }
+}
+
+// TODO: figure out why this doesnt work -- june 6
 
 </script>
 <template>
@@ -374,7 +488,7 @@ const onRejected = async () => {
     <div class="items-center align-center h-full w-full ">
 
       <!-- custom tabs component -->
-      <div @click="[isToggled = !isToggled, console.log(isToggled)]" class="flex justify-between cursor-pointer ml-4 pt-4 mr-4">
+      <div @click="[isToggled = !isToggled, approvalList = []]" class="flex justify-between cursor-pointer ml-4 pt-4 mr-4">
 
         <div v-if="isToggled" class="bg-white rounded-md p-1 flex w-full">
           <p class="text-[#017C35] font-bold bg-[#ebebeb] w-1/2 rounded-sm text-center">Schedule Approval</p>
@@ -406,14 +520,44 @@ const onRejected = async () => {
 
       <!-- LEFT: Requestor -->
       <div class="col-span-2 bg-white rounded-[12px] ml-4 mt-4 mb-4 p-4">
+      <!-- 
         <div>
           <p class="text-[#017C35] font-bold">Requestor</p>
+        </div> 
+      -->
+          <div @click="[isReceived = !isReceived, resetForm()]" class="flex justify-between cursor-pointer">
+
+          <div v-if="isReceived" class="bg-white rounded-md p-1 flex w-full">
+            <p class="text-[#017C35] font-bold bg-[#ebebeb] w-1/2 rounded-md text-center">Received Requests</p>
+            <p class="w-1/2 text-center">Sent Requests</p>
+          </div>
+          
+          <div v-if="!isReceived" class="bg-white rounded-md p-1 flex w-full">
+            <p class="w-1/2 text-center">Received Requests</p>
+            <p class="text-[#017C35] font-bold bg-[#ebebeb] w-1/2 rounded-md text-center">Sent Requests</p>
+          </div>
+
         </div>
-        <UTable :rows="paginatedRows" :columns="columns">
-          <template #actions-data="{ row }">
-            <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35]"  @click="loadApprovals(row.approval_id)"  />
-          </template>
-        </UTable>
+
+        <!-- received requests -->
+        <div v-if="isReceived">
+          <UTable :rows="paginatedRows" :columns="columns">
+            <template #actions-data="{ row }">
+              <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35] mr-2" alt="view"  @click="[loadApprovals(row.approval_id), approvalId = row.approval_id]"  />
+              <UIcon name="i-material-symbols-delete-outline-rounded" class="w-6 h-6 cursor-pointer text-[#dd3a3a]"  @click="[console.log('deleting approval id: ', row.approval_id)]"  />
+            </template>
+          </UTable>
+        </div>
+
+        <!-- sent requests -->
+        <div v-if="!isReceived">
+          <UTable :rows="sentRequestsList" :columns="sentColumns">
+            <template #actions-data="{ row }">
+              <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35] mr-2" alt="view"  @click="[loadApprovals(row.id), console.log(row)]"  />
+              <UIcon name="i-material-symbols-delete-outline-rounded" class="w-6 h-6 cursor-pointer text-[#dd3a3a]"  @click="[console.log('deleting approval id: ', row.id)]"  />
+            </template>
+          </UTable>
+        </div>
       </div>
 
       <!-- MIDDLE: Work Time Schedule List -->
@@ -446,14 +590,14 @@ const onRejected = async () => {
           </div>
           
           <div class=" flex justify-end">
-             <UButton
+             <!-- <UButton
               class="bg-[#017C35] text-white font-bold rounded-lg"
               variant="ghost"
               size="sm"
               @click="console.log('Approve All for parent ID=', selectedApproval?.id)"
             >
               Approve All
-            </UButton>
+            </UButton> -->
           </div>
         </div>
       </div>
@@ -470,8 +614,29 @@ const onRejected = async () => {
               <p>From Unit:</p>
             </div>
             <div v-if="selectedApproval" class="text-right">
-              <p>{{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.name || '' }}</p>
-              <p>{{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.unit || '' }}</p>
+              <p>
+                <!-- Show dean name for received requests, else for sent requests show recipient dean info -->
+                <span v-if="isReceived">
+                  {{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.name || '' }}
+                </span>
+                <span v-else>
+                  {{ selectedApproval?.dean_name || '' }}
+                </span>
+              </p>
+              <p>
+                <span v-if="isReceived">
+                  {{ borrowerList.find(d => d.approval_id === selectedApproval?.id)?.unit || '' }}
+                </span>
+                <span v-else>
+                  {{ selectedApproval?.dean_unit || '' }}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div>
+            <p class="">Request Note:</p>
+            <div v-if="selectedApproval">
+              <UTextarea color="primary" variant="outline" v-model="selectedApproval.request_note" :disabled="isDisabledRequeset"/>
             </div>
           </div>
         </div>
@@ -491,33 +656,36 @@ const onRejected = async () => {
         </div>
 
         <div class="flex justify-between">
-          <p class="text-[#017C35]">Approval Status</p>
+          <p class="text-[#017C35] font-bold">Approval Status</p>
           <p v-if="selectedApproval">{{ selectedApproval?.approval_status || '' }}</p>
         </div>
 
         <div>
-          <p class="text-[#017C35] font-bold">Add Approval Note</p>
+          <p v-if="isReceived" class="text-[#017C35] font-bold">Add Approval Note</p>
+          <p v-if="!isReceived" class="text-[#017C35] font-bold">View Approval Note</p>
           <div v-if="selectedApproval">
-            <UTextarea color="primary" variant="outline" v-model="selectedApproval.approval_note" />
+            <UTextarea color="primary" variant="outline" v-model="selectedApproval.approval_note" :disabled="isDisabledNote"/>
           </div>
         </div>
 
-        <div>
-          <UButton 
-            class="text-[#DD3A3A] border border-[#DD3A3A] rounded-lg" 
-            size="sm" 
-            variant="ghost" 
-            @click="onRejected"
-          >
-            Reject
-          </UButton>
-          <UButton 
-            class="text-white font-bold rounded-lg" 
-            size="sm" 
-            @click="onApproved"
-          >
-            Approve
-          </UButton>
+        <div class="h-[6%]">
+          <div v-if="isReceived" class="flex justify-between">
+            <UButton 
+              class="text-[#DD3A3A] border border-[#DD3A3A] rounded-lg" 
+              size="sm" 
+              variant="ghost" 
+              @click="onRejected"
+            >
+              Reject
+            </UButton>
+            <UButton 
+              class="text-white font-bold rounded-lg" 
+              size="sm" 
+              @click="onApproved"
+            >
+              Approve
+            </UButton>
+          </div>
         </div>
       </div>
     </div>

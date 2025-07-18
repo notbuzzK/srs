@@ -183,7 +183,10 @@ const removeTimeSlot = async (index: number) => {
     <UModal v-model="isOpen">
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
-          <h1>Availability Time</h1>
+          <div class="flex items-center justify-between">
+            <h1>Availability Time</h1>
+            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isOpen = false" />
+          </div>
         </template>
 
         <div>

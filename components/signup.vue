@@ -50,6 +50,13 @@ const {
   getCourseCode,
 } = useSchedule()
 
+/*
+  REMOVED::
+  {
+    key: 'sd_unit',
+    label: 'Secondary Unit',
+  },
+*/
 const items = [{
   key: 'account',
   label: 'Basic Information',
@@ -59,8 +66,9 @@ const items = [{
   label: 'Primary Unit',
   description: ''
 }, {
-  key: 'sd_unit',
-  label: 'Secondary Unit',
+  key: 'csv',
+  label: 'Add Members using CSV',
+  description: ''
 }, {
   key: 'borrow',
   label: 'Borrow Members',
@@ -257,10 +265,10 @@ async function onExpandUnit(unit: { id: number; type: string }) {
     return
   }
 
-  historyUnit.value = unit // <-- always set this!
+  historyUnit.value = unit // important, do not remove
 
   if (!deptData || deptData.length === 0) {
-    // no departments → go straight to members
+    // no departments → go straight to member
     await loadMembers(unit)
   } else {
     // show departments
@@ -279,6 +287,11 @@ async function loadMembers(
   asType: 'department' | null = null
 ) {
   viewLevel.value = 3
+
+  // If loading members directly from a unit (not a department), clear historyUnit
+  if (parent.type !== 'department') {
+    historyUnit.value = null
+  }
 
   let query = supabase.from('users').select('user_auth_id, name')
 
@@ -308,8 +321,22 @@ if (parent.type === 'department') {
   historyParent.value = parent
 }
 
+// 4) Search
+const q = ref('')
+
+const filteredRows = computed(() => {
+  if (!q.value) {
+    return rows.value
+  }
+
+  return rows.value.filter((person: any) => {
+    return Object.values(person).some((value) => {
+      return String(value).toLowerCase().includes(q.value.toLowerCase())
+    })
+  })
+})
+
 // handler for “View Members” in level 2
-// Handler when clicking “👁 View Members” in dept level
 function onViewMembers(dept: { id: number; type: string }) {
   loadMembers(dept, 'department')
 }
@@ -319,14 +346,21 @@ const historyUnit   = ref<{ id: number; type: string }| null>(null)
 const historyParent = ref<{ id: number; type: string }| null>(null)
 
 function goBack() {
-  if (viewLevel.value === 3 && historyUnit.value) {
+  if (viewLevel.value === 3 && !historyUnit.value) {
+    viewLevel.value = 1
+    loadUnits()
+    console.log('Already at top-level, nothing to go back to')
+  }
+  else if (viewLevel.value === 3 && historyUnit.value) {
     viewLevel.value = 2
     // restore the department list for that unit
     onExpandUnit(historyUnit.value)
+    console.log('Going back to departments for:', historyUnit.value)
   }
   else if (viewLevel.value === 2) {
     viewLevel.value = 1
     loadUnits()
+    console.log('Going back to top-level units')
   }
 }
 
@@ -340,13 +374,13 @@ const facultyInfo = ref<any>(null)
 const scheduleForm = ref(false)
 const schedule = ref({
   scheduleType: '',
-  programCode: 'TBA',
+  programCode: '',
   course: '',
-  room: 'TBA',
+  room: '',
   modality: '',
-  day: '',
+  day: [],
   startTime: '',
-  endTime: ''
+  endTime: '',
 })
 const scheduleList = ref<any>([])
 const getFacultyInfo = async (id: string) => {
@@ -364,20 +398,55 @@ const getFacultyInfo = async (id: string) => {
 }
 
 const addEvent = () => {
+  // check if schedule type is selected
   if (!schedule.value.scheduleType) {
     toast.add({ title: 'Please select a schedule type', color: 'red' })
     return
   }
-
+  
+  const daysArray = Array.isArray(schedule.value.day) ? schedule.value.day : [schedule.value.day];
   const startIndex = otherTimeSlots.indexOf(schedule.value.startTime);
   const rawEndIndex = otherTimeSlots.indexOf(schedule.value.endTime);
-
+  
+  // make sure that atleast one day is selected
+  if(daysArray.length === 0) {
+    alert('Please select at least one day.');
+    return;
+  }
   if (rawEndIndex <= startIndex) {
     toast.add({ title: 'End time must be later than start time', color: 'red' })
     return;
   }
+  
+  // conflict check
+  for (const day of daysArray) {
+    const conflict = scheduleList.value.find((evt: any) =>
+      evt.day === day &&
+      startIndex < evt.endIndex &&
+      rawEndIndex > evt.startIndex
+    )
+    if (conflict) {
+      toast.add({ title: 'This event conflicts with an existing event', color: 'red' })
+      return;
+    }
+  }
 
-  const eventToAdd = {
+  for (const day of daysArray){
+    const eventToAdd = {
+      id: Date.now(), // unique ID for the event
+      scheduleType: schedule.value.scheduleType,
+      programCode: schedule.value.programCode,
+      course: schedule.value.course,
+      room: schedule.value.room,
+      modality: schedule.value.modality,
+      day: day,
+      startTime: schedule.value.startTime,
+      endTime: schedule.value.endTime
+    }
+  scheduleList.value.push(eventToAdd)
+  }
+
+  /* const eventToAdd = {
     id: Date.now(), // unique ID for the event
     scheduleType: schedule.value.scheduleType,
     programCode: schedule.value.programCode,
@@ -387,10 +456,10 @@ const addEvent = () => {
     day: schedule.value.day,
     startTime: schedule.value.startTime,
     endTime: schedule.value.endTime,
-  }
+  } */
 
-  scheduleList.value.push(eventToAdd)
   toast.add({ title: 'Schedule added successfully', color: 'green' })
+  console.log(scheduleList.value)
 
   // Close the modal
   scheduleForm.value = false
@@ -402,23 +471,32 @@ const addEvent = () => {
     course: '',
     room: '',
     modality: '',
-    day: '',
+    day: [],
     startTime: '',
-    endTime: ''
+    endTime: '',
   }
+}
+
+// for schedule note
+const scheduleNote = ref(false)
+const note = ref('')
+const maxLength = 60
+const addNote = () => {
+  note.value = note.value.trim()
+  toast.add({title: 'Note added successfully', color: 'green'})
 }
 
 const resetSchedule = () => {
   scheduleList.value = []
   schedule.value = {
-  scheduleType: '',
-  programCode: 'TBA',
-  course: '',
-  room: 'TBA',
-  modality: '',
-  day: '',
-  startTime: '',
-  endTime: '',
+    scheduleType: '',
+    programCode: '',
+    course: '',
+    room: '',
+    modality: '',
+    day: [],
+    startTime: '',
+    endTime: '',
   }
 }
 
@@ -438,6 +516,7 @@ const onSubmitBorrow = async () => {
       borrowing_dean_id: user?.id,
       work_time_schedule: scheduleList.value,
       approval_status: 'Pending',
+      request_note: note.value
     })
     .select()
 
@@ -461,6 +540,12 @@ onMounted(async () => {
   await getCourses()
 })
 
+// for csv adding
+const isClicked = ref(false)
+const uploadCSV = () => {
+  
+}
+
 // TODO: finalize UI
 
 </script>
@@ -472,12 +557,19 @@ onMounted(async () => {
         <template #item="{ item }">
           <UCard @submit.prevent="() => onSubmit()">
             <template #header>
-              <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                {{ item.label }}
-              </p>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                leave blank if no value
-              </p>
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                    {{ item.label }}
+                  </p>
+                  <p v-if="item.key === 'account' || item.key === 'pr_unit'" class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    leave blank if no value
+                  </p>
+                </div>
+                <div v-if="item.key === 'borrow'" class="flex dark:border-gray-700">
+                  <UInput v-model="q" placeholder="Filter people..." />
+                </div>
+              </div>
             </template>
 
             <!-- Basic Information -->
@@ -645,12 +737,12 @@ onMounted(async () => {
 
             </div>
 
-            <div v-else class="max-h-[400px] overflow-auto">
+            <div v-if="item.key === 'borrow'" class="max-h-[400px] overflow-auto">
              <!--  <p class="text-gray-500 dark:text-gray-400">
                 This tab is for borrowing members from other units.
               </p> -->
 
-              <UTable :columns="columns" :rows="rows">
+              <UTable :columns="columns" :rows="filteredRows">
                 <!-- Name column -->
                 <template #cell-data="{ row }">
                   {{ row.name }}
@@ -664,7 +756,7 @@ onMounted(async () => {
                     @click="onExpandUnit(row)"
                     class="px-2 py-1 bg-green-500 text-white rounded"
                   >
-                    ▶ Departments
+                    Departments
                   </button>
 
                   <!-- Level 2: show View Members -->
@@ -673,7 +765,7 @@ onMounted(async () => {
                     @click="onViewMembers(row)"
                     class="px-2 py-1 bg-blue-500 text-white rounded"
                   >
-                    👁 View Members
+                    View Members
                   </button>
 
                   <!-- Level 3: show Borrow -->
@@ -729,7 +821,10 @@ onMounted(async () => {
                     <div class="col-span-1 row-span-2">
                       <p class="text-sm text-gray-500 dark:text-gray-400">
                         With Schedule:</p>
-                        <p @click="scheduleForm = true" class="cursor-pointer text-[#017C35]">Add Schedule</p>
+                        <div class="flex justify-between">
+                          <p @click="scheduleForm = true" class="cursor-pointer text-[#017C35]">Add Schedule</p>
+                          <p @click="scheduleNote = true" class="cursor-pointer text-[#017C35]">Add/View Note to Schedule</p>
+                        </div>
                       <div class="h-full">
                         <table class="w-full">
                           <thead class="bg-gray-300">
@@ -769,6 +864,39 @@ onMounted(async () => {
                           </tbody>
                         </table>
 
+                        <UModal v-model="scheduleNote">
+                          <UCard>
+                            <template #header>
+                              <p class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                                Add Note
+                              </p>
+                              <p class="text-sm text-gray-500 dark:text-gray-400">Limit: 60 characters including spaces</p>
+                            </template>
+                            <div class="flex flex-col gap-4">
+                              <UInput
+                                size="md"
+                                :maxlength="60"
+                                autoresize
+                                :maxrows="3"
+                                v-model="note"
+                                placeholder="Add note here..."
+                                class="w-full"
+                              >
+                                <template #trailing>
+                                  <span class="text-xs text-gray-500 dark:text-gray-400">{{ note.length}}/60</span>
+                                </template>
+                              </UInput>
+                            </div>
+                            
+                            <template #footer>
+                              <div class="flex justify-end gap-2">
+                                <UButton variant="ghost" @click="scheduleNote = false, note = ''" class="">Close</UButton>
+                                <UButton @click="addNote"class="">Save</UButton>
+                              </div>
+                            </template>
+                          </UCard>
+                        </UModal>
+
                         <UModal v-model="scheduleForm" :ui="{ width: 'w-full sm:max-w-2xl', height: 'h-full sm:max-h-4xl' }">
                           <UCard>
                             <template #header>
@@ -790,27 +918,29 @@ onMounted(async () => {
                                 />
                               </div>
 
-                              <!-- Course -->
-                              <div class="flex gap-4">
-                                <div class="w-1/2">
+                              <div v-if="schedule.scheduleType === 'Teaching'">
+
+                                <!-- Course -->
+                                <div class="flex gap-4">
+                                  <div class="w-1/2">
                                   <label class="block mb-1 font-semibold">Program Code</label>
                                   <UInput v-model="schedule.programCode" placeholder="TBA" class="w-full" />
                                 </div>
                                 <div class="w-1/2">
                                   <label class="block mb-1 font-semibold">Course</label>
                                   <UInputMenu
-                                    v-model="schedule.course"
-                                    :options="courses"
-                                    optionAttribute="name"
-                                    valueAttribute="value"
-                                    placeholder="Start typing course…"
-                                    :filterable="true"
-                                    :onFilter="onCourseSearch" 
-                                    class="w-full"
+                                  v-model="schedule.course"
+                                  :options="courses"
+                                  optionAttribute="name"
+                                  valueAttribute="value"
+                                  placeholder="Start typing course…"
+                                  :filterable="true"
+                                  :onFilter="onCourseSearch" 
+                                  class="w-full"
                                   />
                                 </div>
                               </div>
-
+                              
                               <!-- Room & Modality-->
                               <div class="flex gap-4">
                                 <div class="w-1/2">
@@ -822,27 +952,29 @@ onMounted(async () => {
                                   <USelect v-model="schedule.modality" :options="modality" class="w-full" />
                                 </div>
                               </div>
-
+                              
+                            </div>
                               <!-- Day -->
                               <div>
                                 <label class="block mb-1 font-semibold">Day</label>
-                                <USelect
-                                  v-model="schedule.day"
-                                  :options="days"
-                                  placeholder="Select Day"
-                                  class="w-full"
+                                <USelectMenu
+                                multiple
+                                v-model="schedule.day"
+                                :options="days"
+                                placeholder="Select Day"
+                                class="w-full"
                                 />
                               </div>
-
+                              
                               <div class="flex gap-4">
                                 <!-- Start Time -->
                                 <div class="w-1/2">
                                   <label class="block mb-1 font-semibold">Start Time</label>
                                   <USelect
-                                    v-model="schedule.startTime"
-                                    :options="otherTimeSlots"
-                                    placeholder="Select Start Time"
-                                    class="w-full"
+                                  v-model="schedule.startTime"
+                                  :options="otherTimeSlots"
+                                  placeholder="Select Start Time"
+                                  class="w-full"
                                   />
                                 </div>
                                 <!-- End Time -->
@@ -853,13 +985,13 @@ onMounted(async () => {
                                     :options="otherTimeSlots"
                                     placeholder="Select End Time"
                                     class="w-full"
-                                  />
+                                    />
                                 </div>
                               </div>
                             </div>
 
                             <template #footer>
-                              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[scheduleForm = false]">
+                              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[scheduleForm = false, resetSchedule()]">
                                 Cancel
                               </UButton>
                               <UButton type="button" color="primary" @click="[scheduleForm = false, addEvent()]">
@@ -899,14 +1031,24 @@ onMounted(async () => {
             
             </div>
 
+            <div v-if="item.key === 'csv'">
+              <UInput type="file" size="sm" icon="i-heroicons-folder" />
+              <UButton @click="uploadCSV" color="primary">Upload</UButton>
+            </div>
+
             <template #footer>
-              <UButton type="button" class="mr-2 bg-[#B20000]" @click="[resetValues(), isOpen = false]">
-                Cancel
-              </UButton>
-              <UButton type="submit" color="primary" v-if="item.key === 'sd_unit'">
-                Sign up Faculty
-              </UButton>
+              <div class="flex justify-end">
+                <div>
+                  <UButton type="button" class="mr-2 bg-[#B20000]" @click="[resetValues(), isOpen = false]">
+                  Cancel
+                  </UButton>
+                  <UButton v-if="item.key === 'pr_unit'" type="submit" color="primary">
+                    Sign up Faculty
+                  </UButton>
+                </div>
+              </div>
             </template>
+
           </UCard>
         </template>
       </UTabs>

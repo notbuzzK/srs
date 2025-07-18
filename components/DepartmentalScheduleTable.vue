@@ -32,6 +32,7 @@ const {
 const facultyId = ref<any>('')
 const facultyInfo = ref<any>({})
 const isOpen = ref(false)
+const isOpen2 = ref(false)
 const facultyAvailability = ref<any>([])
 const loading = ref(false)
 const scheduleModal = ref(false)
@@ -318,7 +319,7 @@ const paginatedRows = computed(() => {
                       <div>
                         <p>College: </p>
                         <p>Department: </p>
-                        <p>Acad Services: </p>
+                        <p>Services: </p>
                         <p>Rank: </p>
                       </div>
                       <div class="text-right">
@@ -335,7 +336,7 @@ const paginatedRows = computed(() => {
                       <div>
                         <p>College: </p>
                         <p>Department: </p>
-                        <p>Acad Services: </p>
+                        <p>Services: </p>
                         <p>Rank: </p>
                       </div>
                       <div class="text-right">
@@ -377,6 +378,7 @@ const paginatedRows = computed(() => {
             <template #header>
               <div class="flex items-center justify-between">
                 <p class="font-bold">{{ facultyInfo.name }}</p>
+                <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isOpen = false" />
               </div>
             </template>
 
@@ -480,8 +482,8 @@ const paginatedRows = computed(() => {
           <UButton variant="solid" @click="[showModal = true, isTeamTeaching = false]">Add Event</UButton>
           <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
         </div>
-        <UButton variant="solid" class="bg-[#017C35] text-white" @click="">Suggest Schedule (not working yet)</UButton>
-        <UButton variant="solid" class="bg-[#017C35] text-white" @click="onSubmit">Upload Schedule to database</UButton>
+        <UButton variant="solid" class="bg-[#017C35] text-white text-center" @click="">Suggest Schedule (not working yet)</UButton>
+        <UButton variant="solid" class="bg-[#017C35] text-white text-center align-middle w-full" @click="onSubmit">Upload Schedule to database</UButton>
       </div>
 
       <!-- Space for additional content -->
@@ -502,13 +504,14 @@ const paginatedRows = computed(() => {
           </div>
         </div>
 
-        <p @click="isOpen = true" class="text-[#017C35] font-medium cursor-pointer text-sm text-center">Show Faculty Availability Time</p>
+        <p @click="isOpen2 = true" class="text-[#017C35] font-medium cursor-pointer text-sm text-center">Show Faculty Availability Time</p>
 
-        <UModal v-model="isOpen">
+        <UModal v-model="isOpen2">
           <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }" >
             <template #header>
               <div class="flex items-center justify-between">
                 <p class="font-bold">{{ facultyInfo.name }}</p>
+                <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isOpen2 = false" />
               </div>
             </template>
 

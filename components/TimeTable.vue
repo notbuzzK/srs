@@ -52,11 +52,11 @@ function onModalClose() {
     programCode: '',
     course: '',
     modality: '',
-    room: 'TBA',
-    day: ['Monday'],
+    room: '',
+    day: [],
     startTime: otherTimeSlots[0],
     endTime: otherTimeSlots[1],
-    delivery: 'Conventional',
+    delivery: '',
     teamTeaching: [],
   }
 }
@@ -151,74 +151,77 @@ function onModalClose() {
             />
           </div>
 
-          <!-- Course -->
-          <div class="flex gap-4">
-            <div class="w-1/2">
-              <label class="block mb-1 font-semibold">Program Code</label>
-              <UInput v-model="newEvent.programCode" placeholder="TBA" class="w-full" />
+          <div v-if="newEvent.type === 'Teaching'">
+
+            
+            <!-- Course -->
+            <div class="flex gap-4">
+              <div class="w-1/2">
+                <label class="block mb-1 font-semibold">Program Code</label>
+                <UInput v-model="newEvent.programCode" placeholder="TBA" class="w-full" />
+              </div>
+              <div class="w-1/2">
+                <label class="block mb-1 font-semibold">Course</label>
+                <UInputMenu
+                  v-model="newEvent.course"
+                  :options="courses"
+                  optionAttribute="name"
+                  valueAttribute="value"
+                  placeholder="Start typing course…"
+                  :filterable="true"
+                  :onFilter="onCourseSearch" 
+                  class="w-full"
+                />
+              </div>
             </div>
-            <div class="w-1/2">
-              <label class="block mb-1 font-semibold">Course</label>
-              <UInputMenu
-                v-model="newEvent.course"
-                :options="courses"
-                optionAttribute="name"
-                valueAttribute="value"
-                placeholder="Start typing course…"
-                :filterable="true"
-                :onFilter="onCourseSearch" 
-                class="w-full"
-              />
+
+            <!-- Room & Modality-->
+            <div class="flex gap-4">
+              <div class="w-1/2">
+                <label class="block mb-1 font-semibold">Room</label>
+                <UInput v-model="newEvent.room" placeholder="TBA" class="w-full" />
+              </div>
+              <div class="w-1/2">
+                <label class="block mb-1 font-semibold">Modality</label>
+                <USelect v-model="newEvent.modality" :options="modality" class="w-full" />
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <!-- Delivery -->
+              <div class="w-full" v-if="newEvent.delivery === 'Conventional'">
+                <label class="block mb-1 font-semibold">Delivery</label>
+                <USelect
+                  v-model="newEvent.delivery"
+                  :options="delivery"
+                  class="w-full"
+                />
+              </div>
+              <div class="w-1/2" v-if="newEvent.delivery !== 'Conventional'">
+                <label class="block mb-1 font-semibold">Delivery</label>
+                <USelect
+                  v-model="newEvent.delivery"
+                  :options="delivery"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Team Teaching -->
+              <div v-if="newEvent.delivery !== 'Conventional'" class="w-1/2">
+                <label class="block mb-1 font-semibold">Select Other Faculty</label>
+                <USelectMenu
+                  v-model="newEvent.teamTeaching"
+                  :options="facultyRows"
+                  optionAttribute="name"
+                  valueAttribute="user_auth_id"
+                  placeholder="Search & select faculty…"
+                  class="w-full"
+                  multiple
+                  searchable
+                />
+              </div>
             </div>
           </div>
-
-          <!-- Room & Modality-->
-          <div class="flex gap-4">
-            <div class="w-1/2">
-              <label class="block mb-1 font-semibold">Room</label>
-              <UInput v-model="newEvent.room" placeholder="TBA" class="w-full" />
-            </div>
-            <div class="w-1/2">
-              <label class="block mb-1 font-semibold">Modality</label>
-              <USelect v-model="newEvent.modality" :options="modality" class="w-full" />
-            </div>
-          </div>
-
-          <div class="flex gap-4">
-            <!-- Delivery -->
-            <div class="w-full" v-if="newEvent.delivery === 'Conventional'">
-              <label class="block mb-1 font-semibold">Delivery</label>
-              <USelect
-                v-model="newEvent.delivery"
-                :options="delivery"
-                class="w-full"
-              />
-            </div>
-            <div class="w-1/2" v-if="newEvent.delivery !== 'Conventional'">
-              <label class="block mb-1 font-semibold">Delivery</label>
-              <USelect
-                v-model="newEvent.delivery"
-                :options="delivery"
-                class="w-full"
-              />
-            </div>
-
-            <!-- Team Teaching -->
-            <div v-if="newEvent.delivery !== 'Conventional'" class="w-1/2">
-              <label class="block mb-1 font-semibold">Select Other Faculty</label>
-              <USelectMenu
-                v-model="newEvent.teamTeaching"
-                :options="facultyRows"
-                optionAttribute="name"
-                valueAttribute="user_auth_id"
-                placeholder="Search & select faculty…"
-                class="w-full"
-                multiple
-                searchable
-              />
-            </div>
-          </div>
-
           <!-- Day -->
           <div>
             <label class="block mb-1 font-semibold">Day</label>
