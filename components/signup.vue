@@ -121,7 +121,6 @@ async function onSubmit() {
 
   if (signInError) {
     console.error('Error signing in:', signInError);
-    
     return;
   }
   
@@ -131,7 +130,7 @@ async function onSubmit() {
   // Get the current user's acadYear and acadSem
   const { data: creatorData, error: creatorError } = await supabase
     .from('users')
-    .select('acadYear, acadSem')
+    .select('acadYear, acadSem, semester_type')
     .eq('user_auth_id', user?.id)
     .single();
 
@@ -143,6 +142,7 @@ async function onSubmit() {
 
   const creatorAcadYear = creatorData?.acadYear || '';
   const creatorAcadSem = creatorData?.acadSem || '';
+  const creatorSemesterType = creatorData?.semester_type || '';
 
   let { data: insertedUser, error: insertError } = await supabase
     .from('users')
@@ -166,8 +166,9 @@ async function onSubmit() {
         item: accountForm.item,
         designation: accountForm.designation,
         status: 'Active',
-        acadYear: creatorAcadYear,   // <-- set from creator
-        acadSem: creatorAcadSem,     // <-- set from creator
+        acadYear: creatorAcadYear,
+        acadSem: creatorAcadSem,
+        semester_type: creatorSemesterType
       },
     ])
     .select();
@@ -541,9 +542,115 @@ onMounted(async () => {
 })
 
 // for csv adding
+import Papa from 'papaparse'
 const isClicked = ref(false)
-const uploadCSV = () => {
-  
+const csvFile = ref<File|null>(null)
+
+const csvInput = ref<HTMLInputElement | null>(null)
+
+function handleFileChange(event: Event) {
+  const input = csvInput.value
+  if (input && input.files && input.files.length > 0) {
+    csvFile.value = input.files[0]
+    console.log('Selected file (from ref):', csvFile.value)
+    return
+  }
+
+  const target = event.target as HTMLInputElement
+  if (target && target.files && target.files.length > 0) {
+    csvFile.value = target.files[0]
+    console.log('Selected file (from event.target):', csvFile.value)
+    return
+  }
+
+  console.log('No file found')
+}
+
+const uploadCSV = async () => {
+  if (!csvFile.value) {
+    toast.add({ title: 'Please select a CSV file', color: 'red' })
+    return
+  }
+  Papa.parse(csvFile.value, {
+    header: true,
+    complete:async function(results: any) {
+      console.log('Parsed CSV:', results.data)
+      for (const record of results.data) {
+
+        // Sign up the user
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: record.email,
+          password: record.password,
+        });
+
+        if (signUpError) {
+          console.error('Error signing up:', signUpError);
+          toast.add({ title: 'Error signing up', color: 'red' })
+          return;
+        } 
+
+        const user_auth_id = signUpData.user?.id
+
+        // Get the current user's acadYear and acadSem
+        const { data: creatorData, error: creatorError } = await supabase
+          .from('users')
+          .select('acadYear, acadSem, semester_type')
+          .eq('user_auth_id', user?.id)
+          .single();
+
+        if (creatorError) {
+          console.error('Error fetching creator term info:', creatorError);
+          toast.add({ title: 'Error fetching your term info', color: 'red' });
+          return;
+        }
+
+        const creatorAcadYear = creatorData?.acadYear || '';
+        const creatorAcadSem = creatorData?.acadSem || '';
+        const creatorSemesterType = creatorData?.semester_type || '';
+
+        const payload = {
+          name: record.name,
+          email: record.email,
+          password: record.password,
+          role: record.role,
+          designation: record.designation,
+          status: 'Active',
+          user_auth_id: user_auth_id,
+          items: record.items,
+          acadYear: creatorAcadYear,
+          acadSem: creatorAcadSem,
+          semester_type: creatorSemesterType,
+          pr_college_id: parseUnitValue(record.pr_college_id),
+          pr_acadServices_id: parseUnitValue(record.pr_acadServices_id),
+          pr_department_id: parseUnitValue(record.pr_department_id),
+          pr_rank: parseUnitValue(record.pr_rank),
+          pr_rankValue: parseUnitValue(record.pr_rankValue),
+          sd_college_id: parseUnitValue(record.sd_college_id),
+          sd_acadServices_id: parseUnitValue(record.sd_acadServices_id),
+          sd_department_id: parseUnitValue(record.sd_department_id),
+          sd_rank: parseUnitValue(record.sd_rank),
+          sd_rankValue: parseUnitValue(record.sd_rankValue),
+        }
+
+        const { data, error } = await supabase
+          .from('users')
+          .insert(payload)
+
+        if (error) {
+          console.error('Error inserting users:', error)
+          toast.add({ title: 'Error inserting users', color: 'red' })
+          return
+        }
+        console.log('Users inserted successfully:', data)
+        toast.add({ title: 'Users inserted successfully!', color: 'green' })
+      }
+      // toast.add({ title: 'CSV parsed! Check console.', color: 'green' })
+    },
+    error: function(err) {
+      console.error('PapaParse error:', err)
+      toast.add({ title: 'Error parsing CSV', color: 'red' })
+    }
+  })
 }
 
 // TODO: finalize UI
@@ -1031,8 +1138,20 @@ const uploadCSV = () => {
             
             </div>
 
+            <!-- CSV -->
             <div v-if="item.key === 'csv'">
-              <UInput type="file" size="sm" icon="i-heroicons-folder" />
+              <input
+                type="file"
+                accept=".csv"
+                ref="csvInput"
+                @change="handleFileChange"
+              />
+              <UInput
+                type="file"
+                accept=".csv"
+                ref="csvInput"
+                @change="handleFileChange"
+              />
               <UButton @click="uploadCSV" color="primary">Upload</UButton>
             </div>
 
