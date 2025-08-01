@@ -298,7 +298,14 @@ onMounted(async () => {
 
 const onApproved = async () => {
   // loops over approvalRows and inserts each entry into facultySchedules table along with user info from selectedApproval
-  // console.log('dean info', deanInfo.value)
+  await getBorrowerInfo();
+  console.log('dean info', deanInfo.value)
+
+  //check if approval is already approved
+  if (selectedApproval.value.approval_status === 'Approved') {
+    toast.add({ title: 'Approval already approved', color: 'red' })
+    return
+  }
   for (const entry of approvalRows.value) {
     console.log('entry: ', entry)
     // Check for existing schedule
@@ -378,10 +385,11 @@ const onApproved = async () => {
   if (error) {
     console.error('Error updating user:', error)
     return
+  } else {
+    toast.add({ title: 'Faculty borrow request approved!', color: 'green' })
+    await loadApprovals(approvalId.value)
+    await getBorrowerList()
   }
-
-  toast.add({ title: 'Faculty borrow request approved!', color: 'green' })
-  await loadApprovals(approvalId.value)
 }
 
 const onRejected = async () => {
@@ -544,7 +552,7 @@ const getSentRequests = async ()=> {
           <UTable :rows="paginatedRows" :columns="columns">
             <template #actions-data="{ row }">
               <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35] mr-2" alt="view"  @click="[loadApprovals(row.approval_id), approvalId = row.approval_id]"  />
-              <UIcon name="i-material-symbols-delete-outline-rounded" class="w-6 h-6 cursor-pointer text-[#dd3a3a]"  @click="[console.log('deleting approval id: ', row.approval_id)]"  />
+              <UIcon name="i-material-symbols-delete-outline-rounded" class="w-6 h-6 cursor-pointer text-[#dd3a3a]"  @click="[console.log('deleting approval id: ', row.approval_id), deleteRequest(row.approval_id)]"  />
             </template>
           </UTable>
         </div>

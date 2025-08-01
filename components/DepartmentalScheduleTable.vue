@@ -3,14 +3,11 @@ const supabase = useNuxtApp().$supabase;
 
 const { data: { user } } = await supabase.auth.getUser()
 const userId = user?.id
+const toast = useToast()
 const {
   showModal,
   clearEvents,
   onSubmit,
-  teachingHours,
-  awHours,
-  arpHours,
-  chHours,
   totalHours,
   acadYear,
   acadSem,
@@ -19,7 +16,32 @@ const {
   isTeamTeaching,
   facultyRows,
   fetchSchedules,
-  getOverloadHour
+  getOverloadHour,
+  fetchOverloadCriteria,
+  teachingRegular,
+  teachingOverload,
+  chRegular,
+  chOverload,
+  awRegular,
+  awOverload,
+  arpRegular,
+  arpOverload,
+  totalRegular,
+  totalOverload,
+  currentDesignation,
+  currentTerm,
+  currentItem,
+  awTotal,
+  awThreshold,
+  teachingTotal,
+  teachingThreshold,
+  chTotal,
+  chThreshold,
+  arpTotal,
+  arpThreshold,
+  overloadHours,
+  days,
+  otherTimeSlots
 } = useSchedule()
 
 const {
@@ -136,15 +158,25 @@ onMounted(async () => {
   await loadUserRow()
   await loadChildDeptIds()
   await loadMembersUnderScheduler()
-  if (!acadYear.value || !acadSem.value) {
+  await fetchOverloadCriteria()
+/*   if (!acadYear.value || !acadSem.value) {
     alert('Add academic year, term and semester type first before adding any schedule')
-  }
+  } */
 })
 
 // re-run when unit or deps change
 watch(unit, async () => {
   await loadChildDeptIds()
   await loadMembersUnderScheduler()
+})
+
+// re-run when selected user changes
+watch(facultyId, async () => {
+  await fetchOverloadCriteria()
+  console.log('teachingTotal', teachingTotal.value, 'teachingThreshold', teachingThreshold.value, 'teachingRegular', teachingRegular.value, 'teachingOverload', teachingOverload.value)
+  console.log('awRegular', awRegular.value, 'awOverload', awOverload.value, 'awTotal', awTotal.value, 'awThreshold', awThreshold.value)
+  console.log('chTotal ', chTotal.value, 'chThreshold ', chThreshold.value, 'chRegular ', chRegular.value, 'chOverload ', chOverload.value)
+  console.log('arpTotal ', arpTotal.value, 'arpThreshold ', arpThreshold.value, 'arpRegular ', arpRegular.value, 'arpOverload ', arpOverload.value)
 })
 
 const getCurrectAcadYear = async () => {
@@ -196,7 +228,6 @@ const getAvailabilityTime = async () => {
       console.error('Error fetching faculty availability:', error.message)
     } else {
       facultyAvailability.value = data
-
     }
 }
 
@@ -249,6 +280,91 @@ const paginatedRows = computed(() => {
   return filteredRows.value.slice(start, end)
 })
 
+
+// for adding of availability time
+const newTimeSlot = ref({
+  availability_id: '',
+  day: '',
+  start: '',
+  end: ''
+})
+// Array to store all added time slots
+const timeSlotsAdded = ref<any[]>([])
+const isAvailability = ref(false)
+
+// Add new time slot to the array and reset the form
+const onAddTimeSlot = async () => {
+  console.log('Adding time slot:', newTimeSlot.value);
+
+  if (newTimeSlot.value.day && newTimeSlot.value.start && newTimeSlot.value.end) {
+    const { data, error } = await supabase
+      .from('facultyAvailability')
+      .insert([{
+        faculty_id: facultyId.value,
+        day: newTimeSlot.value.day,
+        start_time: newTimeSlot.value.start,
+        end_time: newTimeSlot.value.end
+      }])
+      .select();
+    if (error) {
+      console.error('Error adding time slot:', error);
+    } else {
+      console.log('Inserted data:', data);
+
+      // Check if data was returned
+      if (data.length > 0 && data[0].availability_id) {
+        facultyAvailability.value.push({
+          availability_id: data[0].availability_id,
+          day: newTimeSlot.value.day,
+          start: newTimeSlot.value.start,
+          end: newTimeSlot.value.end,
+        });
+
+        console.log('Updated timeSlotsAdded:', facultyAvailability.value);
+        toast.add({ title: 'Time slot added successfully!' });
+      } else {
+        console.error('Error: availability_id missing from response');
+      }
+      getAvailabilityTime()
+    }
+
+    isAvailability.value = false;
+    isOpen.value = false
+    isOpen2.value = false
+  } else {
+    console.warn('Invalid time slot input');
+  }
+}
+
+
+// Remove a time slot from the array by index
+const removeTimeSlot = async (index: number) => {
+  const timeSlot = facultyAvailability.value[index]; // Get the object
+  console.log('Attempting to delete:', timeSlot);
+
+  if (!timeSlot || !timeSlot.availability_id) {
+    console.error('Error: No availability_id found for deletion');
+    return;
+  }
+
+  const timeSlotId = timeSlot.availability_id; // Get the correct ID
+  console.log('Deleting time slot with id:', timeSlotId);
+
+  const { data, error } = await supabase
+    .from('facultyAvailability')
+    .delete()
+    .eq('availability_id', timeSlotId)
+    .select();
+
+    if (error) {
+      console.error('Delete error:', error);
+      toast.add({ title: 'Error deleting time slot!', color: 'red' });
+    } else {
+      console.log('Delete response:', data);
+      facultyAvailability.value.splice(index, 1); // Remove from local state
+      toast.add({ title: 'Time slot deleted successfully!' });
+    }
+}
 </script>
 <template>
   <div class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-9 grid-rows-5">
@@ -267,7 +383,7 @@ const paginatedRows = computed(() => {
                 icon="i-tabler-pencil"
                 class="text-[#017C35] hover:text-[#16B559]"
                 variant="ghost"
-                @click="async () => [facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime(), scheduleModal = true, console.log(facultyInfo), suggestedSchedule = false, facultyInfo = await getFacultyUnit()]" />
+                @click="async () => [facultyId = row.user_auth_id, facultyInfo = row, getAvailabilityTime(), scheduleModal = true, console.log(facultyInfo), suggestedSchedule = false, facultyInfo = await getFacultyUnit(), currentDesignation = row.designation, currentTerm = row.semester_type, currentItem = row.item]" />
             </template>
 
           </UTable>
@@ -389,6 +505,7 @@ const paginatedRows = computed(() => {
                     <th scope="col" class="px-6 py-3">Day</th>
                     <th scope="col" class="px-6 py-3">Start Time</th>
                     <th scope="col" class="px-6 py-3">End Time</th>
+                    <th scope="col" class="px-6 py-3">Action</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -399,12 +516,71 @@ const paginatedRows = computed(() => {
                     <td class="px-6 py-3">{{ availability.day }}</td>
                     <td class="px-6 py-3">{{ availability.start_time }}</td>
                     <td class="px-6 py-3">{{ availability.end_time }}</td>
+                    <td class="text-center">
+                      <UIcon
+                        name="i-charm-cross"
+                        @click="removeTimeSlot(index)"
+                      />
+                    </td>
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </UCard>
-        </UModal>
+
+              <UModal v-model="isAvailability">
+                <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+                  <template #header>
+                    <div class="flex items-center justify-between">
+                      <h1>Availability Time</h1>
+                      <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isAvailability = false" />
+                    </div>
+                  </template>
+
+                  <div>
+                    <label>Day</label>
+                    <USelect
+                      v-model="newTimeSlot.day"
+                      :options="days"
+                      placeholder="Select a day"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label>Start Time</label>
+                    <USelect
+                      v-model="newTimeSlot.start"
+                      :options="otherTimeSlots"
+                      placeholder="Select start time"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label>End Time</label>
+                    <USelect
+                      v-model="newTimeSlot.end"
+                      :options="otherTimeSlots"
+                      placeholder="Select end time"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <template #footer>
+                    <UButton @click="onAddTimeSlot">Add Time</UButton>
+                  </template>
+                </UCard>
+              </UModal>
+
+                <div class="flex justify-center pt-4">
+                  <UIcon
+                    name="i-material-symbols-add-circle-rounded"
+                    @click="isAvailability = true"
+                    class="w-8 h-8 text-center text-[#16B559]"
+                  />
+                </div>
+              </div>
+            </UCard>
+          </UModal>
 
           <!-- Modal Footer -->
           <div class="flex justify-between">
@@ -452,10 +628,10 @@ const paginatedRows = computed(() => {
           
           <div class="text-right">
             <div class="text-sm">
-              <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
-              <p>{{ awHours }} hrs</p>
-              <p :class="getHourColor(arpHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
-              <p :class="getHourColor(chHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
+              <p :class="getHourColor(teachingRegular, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingRegular }} hrs</p>
+              <p :class="getHourColor(chRegular, facultyInfo.designation, 'CH', facultyInfo.item, semesterType, teachingTotal)">{{ chRegular }} hrs</p>
+              <p :class="getHourColor(arpRegular, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpRegular }} hrs</p>
+              <p :class="getHourColor(awRegular, facultyInfo.designation, 'AW', facultyInfo.item, semesterType)">{{ awRegular }} hrs</p>
             </div>
           </div>
         </div>
@@ -467,8 +643,12 @@ const paginatedRows = computed(() => {
           </div>
           
           <div class="text-right">
-            <p :class="getHourColor(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">{{ totalHours }} hrs</p>
-            <p>{{ getOverloadHour(totalHours, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType) }} hrs</p>
+            <p :class="getHourColor(totalRegular, facultyInfo.designation, 'Total Hours', facultyInfo.item, semesterType)">
+              {{ totalRegular }} hrs
+            </p>
+            <p>
+              {{ overloadHours }} hrs
+            </p>
           </div>
         </div>
       </div>
@@ -522,6 +702,7 @@ const paginatedRows = computed(() => {
                     <th scope="col" class="px-6 py-3">Day</th>
                     <th scope="col" class="px-6 py-3">Start Time</th>
                     <th scope="col" class="px-6 py-3">End Time</th>
+                    <th scope="col" class="px-6 py-3">Action</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -532,12 +713,71 @@ const paginatedRows = computed(() => {
                     <td class="px-6 py-3">{{ availability.day }}</td>
                     <td class="px-6 py-3">{{ availability.start_time }}</td>
                     <td class="px-6 py-3">{{ availability.end_time }}</td>
+                    <td class="text-center">
+                      <UIcon
+                        name="i-charm-cross"
+                        @click="removeTimeSlot(index)"
+                      />
+                    </td>
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </UCard>
-        </UModal>
+
+              <UModal v-model="isAvailability">
+                <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+                  <template #header>
+                    <div class="flex items-center justify-between">
+                      <h1>Availability Time</h1>
+                      <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isAvailability = false" />
+                    </div>
+                  </template>
+
+                  <div>
+                    <label>Day</label>
+                    <USelect
+                      v-model="newTimeSlot.day"
+                      :options="days"
+                      placeholder="Select a day"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label>Start Time</label>
+                    <USelect
+                      v-model="newTimeSlot.start"
+                      :options="otherTimeSlots"
+                      placeholder="Select start time"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label>End Time</label>
+                    <USelect
+                      v-model="newTimeSlot.end"
+                      :options="otherTimeSlots"
+                      placeholder="Select end time"
+                      class="w-full"
+                    />
+                  </div>
+
+                  <template #footer>
+                    <UButton @click="onAddTimeSlot">Add Time</UButton>
+                  </template>
+                </UCard>
+              </UModal>
+
+                <div class="flex justify-center pt-4">
+                  <UIcon
+                    name="i-material-symbols-add-circle-rounded"
+                    @click="isAvailability = true"
+                    class="w-8 h-8 text-center text-[#16B559]"
+                  />
+                </div>
+              </div>
+            </UCard>
+          </UModal>
       </div>
     </div>
   </div>

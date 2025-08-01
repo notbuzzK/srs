@@ -209,6 +209,16 @@ const paginatedRows = computed(() => {
   return filteredRows.value.slice(start, end)
 })
 
+const getUnitName = computed(() => {
+  if (props.unitType === 'college') {
+    return getCollegeName(props.unitId);
+  } else if (props.unitType === 'department') {
+    return getDepartmentName(props.unitId);
+  } else if (props.unitType === 'service') {
+    return getAcadServicesName(props.unitId);
+  }
+  return '';
+});
 
 // React to prop changes
 watch(() => [props.unitType, props.unitId], async () => {
@@ -224,7 +234,7 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col justify-between h-full">
     <div class="flex justify-between items-center border-b px-3 py-2.5">
-      <h1 class="font-sans text-green-700 font-bold">Manage Faculty Members</h1>
+      <h1 class="font-sans text-green-700 font-bold">{{ getUnitName }}</h1>
       <div class="flex items-center gap-2">
         <button @click="loadPeople" :disabled="loading">
           <UIcon name="i-material-symbols-refresh-rounded" class="w-6 h-6 cursor-pointer text-[#017C35] hover:animate-spin" />

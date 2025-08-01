@@ -5,16 +5,21 @@ const {
   showModal,
   clearEvents,
   onSubmit,
-  teachingHours,
-  awHours,
-  arpHours,
-  chHours,
   totalHours,
   acadYear,
   acadSem,
   semesterType,
   getHourColor,
   getOverloadHour,
+  teachingRegular,
+  teachingOverload,
+  teachingTotal,
+  chRegular,
+  chOverload,
+  awRegular,
+  awOverload,
+  arpRegular,
+  arpOverload
 } = useSchedule()
 
 const { data: { user } } = await supabase.auth.getUser()
@@ -77,9 +82,7 @@ onMounted(async ()=> {
   await getCurrectAcadYear()
   await getCurrentTerm()
   await getCurrentSemesterType()
-  if (!acadYear.value || !acadSem.value) {
-    alert('Add academic year, term and semester type first before adding any schedule')
-  }
+  await getFacultyInfo()
 })
 
 </script>
@@ -144,10 +147,10 @@ onMounted(async ()=> {
                 
                 <div class="text-right">
                   <div class="text-sm">
-                    <p :class="getHourColor(teachingHours, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingHours }} hrs</p>
-                    <p>{{ awHours }} hrs</p>
-                    <p :class="getHourColor(arpHours, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpHours }} hrs</p>
-                    <p :class="getHourColor(chHours, facultyInfo.designation, 'CH', facultyInfo.item, semesterType)">{{ chHours }} hrs</p>
+                  <p :class="getHourColor(teachingRegular, facultyInfo.designation, 'Teaching', facultyInfo.item, semesterType)">{{ teachingRegular }} hrs</p>
+                  <p :class="getHourColor(chRegular, facultyInfo.designation, 'CH', facultyInfo.item, semesterType, teachingTotal)">{{ chRegular }} hrs</p>
+                  <p :class="getHourColor(arpRegular, facultyInfo.designation, 'ARP', facultyInfo.item, semesterType)">{{ arpRegular }} hrs</p>
+                  <p :class="getHourColor(awRegular, facultyInfo.designation, 'AW', facultyInfo.item, semesterType)">{{ awRegular }} hrs</p>
                   </div>
                 </div>
               </div>

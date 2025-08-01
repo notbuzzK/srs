@@ -54,12 +54,29 @@ const newTimeSlot = ref({
   end: ''
 })
 
+const userRole = ref('')
+const getCurrentUserRole = async () => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('user_auth_id', user_id)
+  
+  if (error) {
+    console.error('Error fetching user role:', error)
+  } else {
+    userRole.value = data[0].role
+  }
+}
+
 // Array to store all added time slots
 const timeSlotsAdded = ref<any[]>([])
 
 onMounted(async () => {
   // Fetch existing time slots
   await getAvailability()
+
+  // Fetch user role
+  await getCurrentUserRole()
 })
 
 const getAvailability = async () => {
@@ -93,8 +110,7 @@ const onAddTimeSlot = async () => {
         start_time: newTimeSlot.value.start,
         end_time: newTimeSlot.value.end
       }])
-      .select(); // Ensure we get the inserted data back
-
+      .select();
     if (error) {
       console.error('Error adding time slot:', error);
     } else {
@@ -103,7 +119,7 @@ const onAddTimeSlot = async () => {
       // Check if data was returned
       if (data.length > 0 && data[0].availability_id) {
         timeSlotsAdded.value.push({
-          availability_id: data[0].availability_id, // Ensure correct ID is stored
+          availability_id: data[0].availability_id,
           day: newTimeSlot.value.day,
           start: newTimeSlot.value.start,
           end: newTimeSlot.value.end,
@@ -227,6 +243,7 @@ const removeTimeSlot = async (index: number) => {
 
     <div class="flex justify-center pt-4">
       <UIcon
+        v-if="userRole === 'Higher Ups' || userRole === 'Scheduler'"
         name="i-material-symbols-add-circle-rounded"
         @click="isOpen = true"
         class="w-8 h-8 text-center text-[#16B559]"

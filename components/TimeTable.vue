@@ -38,10 +38,13 @@ const {
 const props = defineProps<{ user_auth_id: string }>()
 
 watch(() => props.user_auth_id, (newId) => {
-  userId.value = newId
   fetchSchedules(newId)
   getPrimaryDept()
   getCourses()
+})
+
+onMounted(() => {
+  fetchSchedules(props.user_auth_id)
 })
 
 // Reset all modal fields on close

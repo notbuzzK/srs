@@ -1,6 +1,7 @@
 // composables/useSchedule.ts
 import { ref, computed } from 'vue'
 import { useNuxtApp } from '#app'
+import supabase from '~/plugins/supabase'
 /* import { useToast } from '#imports'
 const toast = useToast() */
 
@@ -102,7 +103,7 @@ const newEvent = ref({
   day: [], 
   startTime: timeSlots[0],
   endTime: timeSlots[1],
-  delivery: '',  // default delivery mode
+  delivery: '', 
   teamTeaching: [] as string[],  // will hold user_auth_id[] of other faculty
 })
 
@@ -298,162 +299,214 @@ function getRowSpan(day: string, slotIndex: number) {
   return evt ? evt.endIndex - evt.startIndex : 1
 }
 
-
-/*
-  hour: number,
-  designation: string,
-  type: keyof typeof typeToKey,
-  isPrimary: boolean,
-  program: 'semester' | 'trimestral' | 'midyear',
-  isFullTime: boolean
-)
-*/
-
-
-const fullTimeConfig = {
-  semestral: {
-    general:                           { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Vice Chancellor':                 { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Academic Dean':                   { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'TSA Dean':                        { teachingLoad:  3, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'SHSSHS Director':                 { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Director':                        { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Vice Dean':                       { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Program Director':                { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Assistant Director':              { teachingLoad:  9, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Chair':                           { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Vice Chair':                      { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Coordinator':                     { teachingLoad: 15, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Academic Teaching Faculty':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-    'Academic Services Faculty':       { teachingLoad: 18, overload: 9, consultation: 6, academicPursuits: 6, residency: 30 },
-  },
-  trimestral: {
-    general:                           { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Vice Chancellor':                 { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Academic Dean':                   { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'TSA Dean':                        { teachingLoad:  2, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'SHSSHS Director':                 { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Director':                        { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Vice Dean':                       { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Program Director':                { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Assistant Director':              { teachingLoad:  6, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Chair':                           { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Vice Chair':                      { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Coordinator':                     { teachingLoad: 10, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Academic Teaching Faculty':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-    'Academic Services Faculty':       { teachingLoad: 12, overload: 6, consultation: 4, academicPursuits: 9, residency: 25 },
-  },
-  midyear: {
-    general:         { teachingLoad: Infinity, overload: Infinity, consultation: Infinity, academicPursuits: Infinity, residency: 20 },
-  }
+// for typescript to shutup 
+interface DesignationMap {
+  [key: string]: string;
 }
 
-const partTimeConfig = {
-  semestral: {
-    general:         { teachingLoad: 17, overload: 0,  consultation: 2, academicPursuits: 0, residency: 19 },
-  },
-  trimestral: {
-    general:         { teachingLoad: 11, overload: 0, consultation: 2, academicPursuits: 0, residency: 13 },
+// maps designation to designation code
+function getDesignation(designation: string){
+  const designationMap: DesignationMap = {
+    'Academic Dean':                   'DN/DRCTR',
+    'TSA Dean':                        'DN/DRCTR',
+    'SHSSHS Director':                 'DN/DRCTR',
+    'Director':                        'DN/DRCTR',
+    'Vice Dean':                       'VD/PD',
+    'Program Director':                'VD/PD',
+    'Chair':                           'CHAIR/AD',
+    'Assistant Director':              'CHAIR/AD',
+    'Vice Chancellor':                 'VC/COORD',
+    'Vice Chair':                      'VC/COORD',
+    'Coordinator':                     'VC/COORD',
+    'Academic Teaching Faculty':       'ATF',
+    'Academic Services Faculty':       'ATF',
   }
+  return designationMap[designation];
 }
 
-// colors for different hours
-function getHourColor(hour: number, designation: string, type: string, item: string, term: string){
-  // 1) Choose full-time vs part-time config
-  const cfg: any = item === 'Part-Time'
-    ? partTimeConfig
-    : fullTimeConfig;
+// global cache for criteria
+const overloadCriteriaCache = ref<any[]>([])
 
-  // 2) Pick the right term block (normalize to lowercase key)
-  // Add a check to ensure term is not null before calling toLowerCase()
-  const termKey = term ? term.toLowerCase() as 'semestral' | 'trimestral' | 'midyear' : 'semestral'; // Provide a default like 'semester'
-  const termCfg = cfg[termKey] || cfg.semestral;
 
-  // 3) Pick the bucket by designation (fall back to 'general')
-  const bucket = termCfg[designation] || termCfg.general;
-
-  // 4) Map your type to the config property
-  const key: keyof typeof bucket = (
-    type === 'Teaching' ? 'teachingLoad' :
-    type === 'CH'       ? 'consultation' :
-    type === 'ARP'      ? 'academicPursuits' :
-                          'residency'    // covers "Total Hours"
-  );
-
-  const threshold = bucket[key];
-  // console.log('threshold', threshold)
-  // console.log('bucket', bucket)
-  // console.log('term key', termKey) 
-
-  // 5) If threshold is zero, we skip the orange band:
-  //    any positive hours => RED; zero or below => BLACK
-  if (threshold === 0) {
-    return hour > 0 ? 'text-red-600' : 'text-black';
-  }
-
-  // 6) Otherwise use the 10% margin logic:
-  if (hour <= threshold) {
-    // At or below threshold → OK
-    return 'text-black';
-  }
-  if (hour <= threshold * 1.1) {
-    // Up to 10% over → Warning
-    return 'text-orange-600';
-  }
-  // More than 10% over → Exceeded
-  return 'text-red-600';
-}
-
-function getOverloadHour(hour: number, designation: string, type: string, item: string, term: string){
-  // 1) Choose full-time vs part-time config
-  const cfg: any = item === 'Part-Time'
-    ? partTimeConfig
-    : fullTimeConfig;
-
-  // 2) Pick the right term block (normalize to lowercase key)
-  const termKey = term ? term.toLowerCase() as 'semestral' | 'trimestral' | 'midyear' : 'semestral';
-  const termCfg = cfg[termKey] || cfg.semestral;
-
-  // 3) Pick the bucket by designation (fall back to 'general')
-  const bucket = termCfg[designation] || termCfg.general;
-
-  // 4) Map your type to the config property
-  const key: keyof typeof bucket = 'residency'; // always use 'residency' key
-
-  const residency = bucket[key];
-  const overloadHours = hour - residency;
-  if (overloadHours >= 0 ){
-    return overloadHours;
+// fetch overload criteria
+async function fetchOverloadCriteria() {
+  const supabase = useNuxtApp().$supabase
+  const { data, error } = await supabase.from('overloadCriteria').select('*')
+  if (error) {
+    console.error('Error fetching overload criteria:', error.message)
+    overloadCriteriaCache.value = []
   } else {
-    return 0
+    overloadCriteriaCache.value = data
   }
 }
 
-// Computed total hours (each slot = 0.5 hrs)
-const teachingHours = computed(() =>
-  events.value
-    .filter(evt => evt.type === 'Teaching')
+// utility to get the correct criteria row
+function getCriteriaRow(designation: string, isPartTime: boolean, term: string, tlh?: number) {
+  const designationMap = getDesignation(designation)
+  let rows = overloadCriteriaCache.value.filter(row =>
+    row.designation === designationMap &&
+    row.is_partTime === isPartTime &&
+    row.semester_type.toLowerCase() === term.toLowerCase()
+  )
+  // Special handling for Part-Time ATF
+  if (
+    isPartTime &&
+    designationMap === 'ATF' &&
+    tlh !== undefined &&
+    rows.length > 1
+  ) {
+    // Semestral & Midyear: <9 = ch=1, >=9 = ch=2
+    // Trimestral: 1-5 = ch=1, 6-10 = ch=2
+    if (term.toLowerCase() === 'semestral' || term.toLowerCase() === 'midyear') {
+      return rows.find(row => tlh < 9 ? row.ch === 1 : row.ch === 2)
+    } else if (term.toLowerCase() === 'trimestral') {
+      return rows.find(row => tlh <= 5 ? row.ch === 1 : row.ch === 2)
+    }
+  }
+  // Default: just return the first row
+  return rows[0]
+}
+
+// Update all usages of getCriteriaRow to pass TLH where needed
+function getHourColor(hour: number, designation: string, type: string, item: string, term: string, tlh?: number) {
+  const isPartTime = item === 'Part-Time'
+  const row = getCriteriaRow(designation, isPartTime, term, tlh)
+  if (!row) return 'text-black'
+
+  // Map type to column
+  let threshold = 0
+  if (type === 'Teaching') threshold = row.min_tlh
+  else if (type === 'CH') threshold = row.ch
+  else if (type === 'ARP') threshold = row.arp
+  else if (type === 'AW') threshold = row.min_aw
+  else threshold = row.min_rh // fallback for "Total Hours"
+
+  if (threshold === 0) {
+    return hour > 0 ? 'text-red-600' : 'text-black'
+  }
+  if (hour <= threshold) return 'text-black'
+  if (hour <= threshold * 1.1) return 'text-orange-600'
+  return 'text-red-600'
+}
+function getOverloadHour(hour: number, designation: string, type: string, item: string, term: string, tlh?: number) {
+  const isPartTime = item === 'Part-Time'
+  const row = getCriteriaRow(designation, isPartTime, term, tlh)
+  if (!row) return 0
+
+  // Map type to column
+  let threshold = 0
+  if (type === 'Teaching') threshold = row.min_tlh
+  else if (type === 'CH') threshold = row.ch
+  else if (type === 'ARP') threshold = row.arp
+  else if (type === 'AW') threshold = row.min_aw
+  else threshold = row.min_rh // fallback for "Total Hours"
+
+  const overload = hour - threshold
+  return overload > 0 ? overload : 0
+}
+
+// Helper to get the threshold for a given type
+function getThreshold(designation: string, item: string, type: string, term: string, tlh?: number) {
+  const isPartTime = item === 'Part-Time'
+  const row = getCriteriaRow(designation, isPartTime, term, tlh)
+  if (!row) return 0
+  if (type === 'Teaching') return row.min_tlh ?? 0
+  if (type === 'CH') return row.ch ?? 0
+  if (type === 'ARP') return row.arp ?? 0
+  if (type === 'AW') return row.min_aw ?? 0
+  return row.min_rh ?? 0 // fallback for "Total Hours"
+}
+
+// for threshold computation
+const currentDesignation = ref('')
+const currentItem = ref('') 
+const currentTerm = ref('') 
+
+// Teaching
+const teachingTotal = computed(() =>
+  events.value.filter(evt => evt.type === 'Teaching')
     .reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
-const awHours = computed(() =>
-  events.value
-    .filter(evt => evt.type === 'AW')
+
+const teachingThreshold = computed(() =>
+  getThreshold(currentDesignation.value, currentItem.value, 'Teaching', currentTerm.value)
+)
+const teachingRegular = computed(() =>
+  Math.min(teachingTotal.value, teachingThreshold.value)
+)
+const teachingOverload = computed(() =>
+  Math.max(teachingTotal.value - teachingThreshold.value, 0)
+)
+
+// AW
+const awTotal = computed(() =>
+  events.value.filter(evt => evt.type === 'AW')
     .reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
-const arpHours = computed(() =>
-  events.value
-    .filter(evt => evt.type === 'ARP')
+const awThreshold = computed(() =>
+  getThreshold(currentDesignation.value, currentItem.value, 'AW', currentTerm.value)
+)
+const awRegular = computed(() =>
+  Math.min(awTotal.value, awThreshold.value)
+)
+const awOverload = computed(() =>
+  Math.max(awTotal.value - awThreshold.value, 0)
+)
+
+// ARP
+const arpTotal = computed(() =>
+  events.value.filter(evt => evt.type === 'ARP')
     .reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
-const chHours = computed(() =>
-  events.value
-    .filter(evt => evt.type === 'CH')
+const arpThreshold = computed(() =>
+  getThreshold(currentDesignation.value, currentItem.value, 'ARP', currentTerm.value)
+)
+const arpRegular = computed(() =>
+  Math.min(arpTotal.value, arpThreshold.value)
+)
+const arpOverload = computed(() =>
+  Math.max(arpTotal.value - arpThreshold.value, 0)
+)
+
+// CH (pass TLH for Part-Time ATF logic)
+const chTotal = computed(() =>
+  events.value.filter(evt => evt.type === 'CH')
     .reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
+const chThreshold = computed(() =>
+  getThreshold(
+    currentDesignation.value,
+    currentItem.value,
+    'CH',
+    currentTerm.value,
+    teachingTotal.value // Pass TLH here!
+  )
+)
+const chRegular = computed(() =>
+  Math.min(chTotal.value, chThreshold.value)
+)
+const chOverload = computed(() =>
+  Math.max(chTotal.value - chThreshold.value, 0)
+)
+
+// Total Hours
 const totalHours = computed(() =>
   events.value.reduce((sum, evt) => sum + (evt.endIndex - evt.startIndex) * 0.5, 0)
 )
-let overloadHours = ref<any>();
+const totalThreshold = computed(() =>
+  getThreshold(currentDesignation.value, currentItem.value, 'Total Hours', currentTerm.value)
+)
+const totalRegular = computed(() =>
+  Math.min(totalHours.value, totalThreshold.value)
+)
+const totalOverload = computed(() =>
+  Math.max(totalHours.value - totalThreshold.value, 0)
+)
+
+// Overload Hours
+const overloadHours = computed(() =>
+  teachingOverload.value + awOverload.value + arpOverload.value + chOverload.value
+)
 
 function cancelModal() {
   showModal.value = false
@@ -699,29 +752,36 @@ async function onSubmit() {
   const toInsert = events.value.filter(e => e.isNew)
   const toUpdate = events.value.filter(e => e.isEdited && !e.isNew)
 
-  // 2) Conflict‐check times for all…
+  // 2) Conflict‐check
   for (const evt of [...toInsert, ...toUpdate]) {
-    const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])])) // extracts all faculty id
-    const { day, displayStart: start, displayEnd: end } = evt
+  const allFaculty = Array.from(new Set([evt.faculty_id, ...(evt.teamTeaching||[])]));
+  const { day, displayStart: start, displayEnd: end, id } = evt;
 
-    const { data: overlaps, error: overlapErr } = await supabase
-      .from('facultySchedules')
-      .select('faculty_id')
-      .in('faculty_id', allFaculty)
-      .eq('day', day)
-      .or(`and(start_time.lte.${end},end_time.gte.${start})`)
+  // Select schedule_id for filtering
+  const { data: overlaps, error: overlapErr } = await supabase
+    .from('facultySchedules')
+    .select('faculty_id, schedule_id')
+    .in('faculty_id', allFaculty)
+    .eq('day', day)
+    .or(`and(start_time.lte.${end},end_time.gte.${start})`);
 
-    if (overlapErr) {
-      console.error('Conflict‐check error', overlapErr)
-      alert('Conflict‐check error' + JSON.stringify(overlapErr))
-      return
-    }
-    if (overlaps.length) {
-      const names = overlaps.map(o => o.faculty_id).join(', ')
-      alert(`Time overlap on ${day} ${start}–${end} for: ${names}`)
-      return
-    }
+  if (overlapErr) {
+    console.error('Conflict‐check error', overlapErr);
+    alert('Conflict‐check error' + JSON.stringify(overlapErr));
+    return;
   }
+
+  // Exclude self for updates
+  const filteredOverlaps = evt.isEdited
+    ? overlaps.filter(o => o.schedule_id !== id)
+    : overlaps;
+
+  if (filteredOverlaps.length) {
+    const names = filteredOverlaps.map(o => o.faculty_id).join(', ');
+    alert(`Time overlap on ${day} ${start}–${end} for: ${names}`);
+    return;
+  }
+}
 
   // 3) Duplicate‐booking check for Conventional delivery only
   for (const evt of toInsert.filter(e => e.delivery === 'Conventional')) {
@@ -857,6 +917,9 @@ async function onSubmit() {
       console.error('Insert error:', insertError)
       alert('Insert error: ' + JSON.stringify(insertError))
       return
+    } else {
+      alert('Schedule uploaded successfully')
+      return
     }
   }
   const updateResults = await Promise.all(updatePayload.map(u =>
@@ -869,6 +932,9 @@ async function onSubmit() {
   if (updateError) {
     console.error('Update error:', updateError.error)
     alert('Update error: ' + JSON.stringify(updateError.error))
+    return
+  } else {
+    alert('Schedule uploaded successfully')
     return
   }
 }
@@ -891,10 +957,6 @@ export function useSchedule() {
     deleteEvent,
     clearEvents,
     onSubmit,
-    teachingHours,
-    awHours,
-    arpHours,
-    chHours,
     totalHours,
     eventAtSlot,
     shouldRenderCell,
@@ -922,6 +984,29 @@ export function useSchedule() {
     confirmPayload,
     onCancelUpload,
     onConfirmUpload,
-    getOverloadHour
+    getOverloadHour,
+    fetchOverloadCriteria,
+    teachingRegular,
+    teachingOverload,
+    chRegular,
+    chOverload,
+    awRegular,
+    awOverload,
+    arpRegular,
+    arpOverload,
+    totalRegular,
+    totalOverload,
+    currentDesignation,
+    currentTerm,
+    currentItem,
+    awTotal,
+    awThreshold,
+    teachingTotal,
+    teachingThreshold,
+    chTotal,
+    chThreshold,
+    arpTotal,
+    arpThreshold,
+    overloadHours,
   }
 }

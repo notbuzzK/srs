@@ -562,7 +562,6 @@ function handleFileChange(event: Event) {
     console.log('Selected file (from event.target):', csvFile.value)
     return
   }
-
   console.log('No file found')
 }
 
@@ -659,7 +658,7 @@ const uploadCSV = async () => {
 <template>
   <div class="flex items-center justify-center">
     <UButton @click="[isOpen = true, resetValues()]" variant="ghost" class="text-sm  font-medium  cursor-pointer text-[#017C35]" >Add Members</UButton>
-    <UModal v-model="isOpen" :ui="{ width: 'w-full sm:max-w-3xl' }">
+    <UModal v-model="isOpen" :ui="{ width: 'w-full sm:max-w-3xl md:max-w-3xl lg:max-w-3xl' }">
       <UTabs :items="items" class="w-full">
         <template #item="{ item }">
           <UCard @submit.prevent="() => onSubmit()">
@@ -1139,31 +1138,25 @@ const uploadCSV = async () => {
             </div>
 
             <!-- CSV -->
-            <div v-if="item.key === 'csv'">
+            <div v-if="item.key === 'csv'" class="max-h-96 overflow-y-auto">
               <input
                 type="file"
                 accept=".csv"
                 ref="csvInput"
                 @change="handleFileChange"
               />
-              <UInput
-                type="file"
-                accept=".csv"
-                ref="csvInput"
-                @change="handleFileChange"
-              />
-              <UButton @click="uploadCSV" color="primary">Upload</UButton>
             </div>
 
             <template #footer>
               <div class="flex justify-end">
                 <div>
                   <UButton type="button" class="mr-2 bg-[#B20000]" @click="[resetValues(), isOpen = false]">
-                  Cancel
+                    Cancel
                   </UButton>
                   <UButton v-if="item.key === 'pr_unit'" type="submit" color="primary">
                     Sign up Faculty
                   </UButton>
+                  <UButton v-if="item.key === 'csv'" type="button" @click="uploadCSV" color="primary">Insert CSV</UButton>
                 </div>
               </div>
             </template>
