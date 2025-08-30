@@ -32,7 +32,7 @@ const {
   showConfirmModal,
   confirmPayload,
   onCancelUpload,
-  onConfirmUpload
+  onConfirmUpload,
 } = useSchedule()
 
 const props = defineProps<{ user_auth_id: string }>()

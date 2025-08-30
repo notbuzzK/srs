@@ -16,7 +16,7 @@ const {
   getCourseCode,
 } = useSchedule()
 
-const columns = [{
+const receivedColumns = [{
   key: 'name',
   label: 'Dean Name',
   sortable: true,
@@ -92,7 +92,7 @@ const filteredRows = computed(() => {
   )
 })
 
-const paginatedRows = computed(() => {
+const receivedRequestsList = computed(() => {
   const start = (page.value - 1) * pageCount
   const end = start + pageCount
   return filteredRows.value.slice(start, end)
@@ -160,7 +160,7 @@ const getAllApprovals = async () => {
     console.error('Error fetching approvals:', error);
   } else {
     approvalList.value = data || [];
-    console.log('approvalList: ', approvalList.value)
+    // console.log('approvalList: ', approvalList.value)
   }
 }
 
@@ -206,7 +206,7 @@ const getBorrowerList = async () => {
 // When you click the “Eye” icon, load that approval’s schedule entries
 // and also fetch the requested member’s name & primary unit for the Details panel
 const loadApprovals = async (approval_id: number) => {
-  console.log('Received approval id: ', approval_id)
+  // console.log('Received approval id: ', approval_id)
   // Find the matching approval record
   const approval = approvalList.value.find((a: any) => a.id === approval_id) || sentRequestsList.value.find((a: any) => a.id === approval_id)
   if (!approval) {
@@ -299,7 +299,7 @@ onMounted(async () => {
 const onApproved = async () => {
   // loops over approvalRows and inserts each entry into facultySchedules table along with user info from selectedApproval
   await getBorrowerInfo();
-  console.log('dean info', deanInfo.value)
+  // console.log('dean info', deanInfo.value)
 
   //check if approval is already approved
   if (selectedApproval.value.approval_status === 'Approved') {
@@ -307,7 +307,7 @@ const onApproved = async () => {
     return
   }
   for (const entry of approvalRows.value) {
-    console.log('entry: ', entry)
+    // console.log('entry: ', entry)
     // Check for existing schedule
     const { data: existing, error: checkError } = await supabase
       .from('facultySchedules')
@@ -353,7 +353,7 @@ const onApproved = async () => {
       console.error('Error inserting schedule entry:', error);
       return;
     } else {
-      console.log('Schedule entry inserted successfully:', data);
+      // console.log('Schedule entry inserted successfully:', data);
     }
   }
 
@@ -426,7 +426,7 @@ const deleteRequest = async (id: number) => {
     return
   } else {
     toast.add({ title: 'Request deleted successfully: ', color: 'green' })
-    console.log('request with id: ', id, ' deleted successfully')
+    // console.log('request with id: ', id, ' deleted successfully')
     await getAllApprovals()
   }
 }
@@ -484,12 +484,42 @@ const getSentRequests = async ()=> {
       request.id = i
       i++
     }  */
-    console.log('sentRequests: ', sentRequestsList.value)
+    // console.log('sentRequests: ', sentRequestsList.value)
   }
 }
 
 // TODO: figure out why this doesnt work -- june 6
 
+// For Schedule Approval
+const receivedScheduleColumns = [{
+  key: 'Unit',
+  label: 'Unit',
+  sortable: true,
+}, {
+  key: 'Date',
+  label: 'Date',
+  sortable: true,
+}, {
+  key: 'action',
+  label: '',
+  class: 'w-[5%]'
+}]
+
+const scheduleRows = ref<any>([])
+const filteredScheduleRows = computed(() => {
+  if (!q.value) return scheduleRows.value 
+  return scheduleRows.value.filter((dean: any) =>
+    Object.values(dean).some((value) =>
+      String(value).toLowerCase().includes(q.value.toLowerCase())
+    )
+  )
+})
+
+const receivedScheduleList = computed(() => {
+  const start = (page.value - 1) * pageCount
+  const end = start + pageCount
+  return filteredScheduleRows.value.slice(start, end)
+})
 </script>
 <template>
   <div class="h-[7%]">
@@ -514,13 +544,31 @@ const getSentRequests = async ()=> {
   <div class="h-[93%]">
 
     <!-- Schedule Approval-->
-    <div v-if="isToggled" class="grid grid-cols-6 h-full gap-4">
-      <div class="col-span-2 bg-white rounded-[12px] ml-4 mt-4 mb-4 p-4">
+    <div v-if="isToggled" class="grid grid grid-cols-9 grid-rows-5 h-full overflow-y-auto">
+      <!-- LEFT: Scheduler list -->
+      <div class="col-span-2 row-span-5 bg-white rounded-[12px] p-4 m-4 mr-2">
+        <h1>For Approvals</h1>
+        <div class="flex pb-4 items-center  border-b border-gray-200 dark:border-gray-700">
+          <UInput v-model="q" placeholder="Filter people..." class="w-full"/>
+        </div>
+        <div class="h-full">
+          <UTable :rows="receivedScheduleList" :columns="receivedScheduleColumns">
+            <template #actions-data="{ row }">
+            </template>
+          </UTable>
+        </div>
+      </div>
+
+      <!-- MIDDLE: Scheule summary -->
+      <div class="col-span-5 row-span-5 bg-white rounded-[12px] p-4 m-4 ml-2 mr-2 overflow-y-auto">
         <h1>h1llo</h1>
       </div>
-      <div class="col-span-4 bg-white rounded-[12px] mr-4 mt-4 mb-4 p-4">
+
+      <!-- RIGHT: Action buttons -->
+      <div class="col-span-2 row-span-5 bg-white rounded-[12px] p-4 m-4 ml-2 overflow-y-auto">
         <h1>h1llo</h1>
       </div>
+
     </div>
 
     <!-- Information Approval-->
@@ -549,7 +597,7 @@ const getSentRequests = async ()=> {
 
         <!-- received requests -->
         <div v-if="isReceived">
-          <UTable :rows="paginatedRows" :columns="columns">
+          <UTable :rows="receivedRequestsList" :columns="receivedColumns">
             <template #actions-data="{ row }">
               <UIcon name="i-ic-baseline-remove-red-eye" class="w-6 h-6 cursor-pointer text-[#017C35] mr-2" alt="view"  @click="[loadApprovals(row.approval_id), approvalId = row.approval_id]"  />
               <UIcon name="i-material-symbols-delete-outline-rounded" class="w-6 h-6 cursor-pointer text-[#dd3a3a]"  @click="[console.log('deleting approval id: ', row.approval_id), deleteRequest(row.approval_id)]"  />

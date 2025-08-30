@@ -63,7 +63,7 @@ onMounted(async () => {
       <div class="h-[93%] w-full bg-green-50 grid grid-cols-8 grid-rows-5">
         <div class="col-span-8 row-span-5 bg-white m-4 rounded-lg">
           <!-- Only render once we know the unit -->
-          <DepartmentalFacultyTable
+          <ManageDepartmentsTable
             v-if="unit"
             :unitType="unit.type"
             :unitId="unit.id"

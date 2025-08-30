@@ -41,7 +41,8 @@ const {
   arpThreshold,
   overloadHours,
   days,
-  otherTimeSlots
+  otherTimeSlots,
+  timeToMinutes
 } = useSchedule()
 
 const {
@@ -152,6 +153,7 @@ async function loadMembersUnderScheduler() {
 }
 
 onMounted(async () => {
+  clearEvents()
   await getCurrectAcadYear()
   await getCurrentTerm()
   await getCurrentSemesterType()
@@ -162,6 +164,7 @@ onMounted(async () => {
 /*   if (!acadYear.value || !acadSem.value) {
     alert('Add academic year, term and semester type first before adding any schedule')
   } */
+//  console.log('Faculty Rows: ', facultyRows.value)
 })
 
 // re-run when unit or deps change
@@ -365,10 +368,85 @@ const removeTimeSlot = async (index: number) => {
       toast.add({ title: 'Time slot deleted successfully!' });
     }
 }
+
+// For confirmation 
+const isConfirmation = ref(false)
+const soonToNameArray = ref<any[]>([])
+const soonToNameArray2 = ref<any[]>([])
+const user_auth_id = ref('')
+const workloadObject = ref({
+  units: 0,
+  teaching: 0,
+  ch: 0,
+  arp: 0,
+  aw: 0,
+  res: 0,
+})
+
+const resetObject = () => {
+  workloadObject.value = {
+    units: 0,
+    teaching: 0,
+    ch: 0,
+    arp: 0,
+    aw: 0,
+    res: 0,
+  }
+}
+const submitForChecking = async () => {
+  // for each row in faculty rows array, grab each row's user auth id
+  // for each faculty user auth id, get all their schedules in table
+  // store all schedules in an array
+  // loop through array and do computations to get:
+  // total units, total hours, total overload hours, total ch hours
+  // total arp hours, total aw hours, total rh hours
+  // once computation is done, store all total values into workload table
+  // each faculty user auth id will have a workload table entry
+  // after all workload table entries are created, redirect to workload page
+  
+  resetObject()
+
+  for (const row of facultyRows.value) {
+    user_auth_id.value = row.user_auth_id
+    
+    const { data: facultySchedule, error: scheduleError} = await supabase
+      .from('facultySchedules')
+      .select('*')
+      .eq('faculty_id', user_auth_id.value)
+    
+    if (scheduleError) {
+      console.log('Schedule retreival error: ', scheduleError)
+      return
+    }
+
+    soonToNameArray.value = facultySchedule
+    soonToNameArray.value.forEach(e => {
+      if (e.schedule_type === 'Teaching') {
+        workloadObject.value.teaching += 60 * (timeToMinutes(e.start_time) - timeToMinutes(e.end_time))
+      }
+      if (e.schedule_type === 'CH') {
+        workloadObject.value.ch += 60 * (timeToMinutes(e.start_time) - timeToMinutes(e.end_time))
+      }
+      if (e.schedule_type === 'AW') {
+        workloadObject.value.aw += 60 * (timeToMinutes(e.start_time) - timeToMinutes(e.end_time))
+      }
+      if (e.schedule_type === 'ARP') {
+        workloadObject.value.arp += 60 * (timeToMinutes(e.start_time) - timeToMinutes(e.end_time))
+      }
+
+      
+    })
+
+    // Calculate total hours
+    workloadObject.value.res = workloadObject.value.teaching + workloadObject.value.ch + workloadObject.value.aw + workloadObject.value.arp
+    
+  }
+}
 </script>
 <template>
   <div class="h-[93%] w-full bg-[#E8F8EF] grid grid-cols-9 grid-rows-5">
 
+    <!-- Left: Faculty List -->
     <div class="col-span-2 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 mr-2 overflow-y-auto">
 
      <div class="flex flex-col h-full justify-between ">
@@ -392,8 +470,6 @@ const removeTimeSlot = async (index: number) => {
           <UPagination v-model="page" :page-count="pageCount" :total="filteredRows.length" />
         </div>
       </div>
-
-
 
       <UModal v-model="scheduleModal" :ui="{ width: 'w-full sm:max-w-5xl', height: 'h-[600px]', }">
         <div class="flex flex-col h-full p-4 justify-evenly">
@@ -591,12 +667,14 @@ const removeTimeSlot = async (index: number) => {
       </UModal>
     </div>
 
+    <!-- Middle: Time Table -->
     <div class="col-span-5 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 ml-2 mr-2 overflow-y-auto">
 
       <TimeTable :user_auth_id="facultyId" />
        
     </div>
 
+    <!-- Right: Summary -->
     <div class="col-span-2 row-span-5 bg-white rounded-lg shadow-lg p-4 m-4 ml-2 overflow-y-auto flex flex-col justify-between">
 
       <div class="">
@@ -660,11 +738,32 @@ const removeTimeSlot = async (index: number) => {
 
         <div class="flex justify-between">
           <UButton variant="solid" @click="[showModal = true, isTeamTeaching = false]">Add Event</UButton>
-          <UButton class="bg-[#DD3A3A] text-white hover:bg-[#bd3333]" @click="clearEvents">Clear Schedule</UButton>
+          <UButton variant="solid" class="bg-[#017C35] text-white text-center" @click="">Suggest Schedule</UButton>
         </div>
-        <UButton variant="solid" class="bg-[#017C35] text-white text-center" @click="">Suggest Schedule (not working yet)</UButton>
         <UButton variant="solid" class="bg-[#017C35] text-white text-center align-middle w-full" @click="onSubmit">Upload Schedule to database</UButton>
+        <UButton variant="solid" class="bg-[#017C35] text-white w-full" @click="isConfirmation = true"><p class="text-center">Submit for Checking</p></UButton>
       </div>
+
+      <!-- Confirmation Modal -->
+      <UModal v-model="isConfirmation">
+        <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }" >
+          <template #header>
+            <div class="flex justify-between">
+              <h1 class="text-[#017C35] font-bold text-xl">Submit for Checking?</h1>
+              <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isConfirmation = false" />
+            </div>
+          </template>
+          <div>
+            <p>Are you sure you want to submit the schedule of this unit for checking?</p>
+          </div>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton label="Cancel" variant="ghost" @click="isConfirmation = false" class="text-[#dd3a3a]"/>
+              <UButton label="Confirm" variant="solid" @click="submitForChecking"/>
+            </div>
+          </template>
+        </UCard>
+      </UModal>
 
       <!-- Space for additional content -->
       <div class="">
@@ -673,14 +772,18 @@ const removeTimeSlot = async (index: number) => {
         <div class="flex justify-between pb-4">
           <div>
             <p class="font-bold">Name: </p>
-            <p>Designation: </p>
-            <p>Email: </p>
+            <div class="text-sm">
+              <p>Designation: </p>
+              <p>Email: </p>
+            </div>
           </div>
           
           <div class="text-right">
             <p class="font-bold">{{ facultyInfo.name }}</p>
-            <p>{{ facultyInfo.designation }}</p>
-            <p>{{ facultyInfo.email }}</p>
+            <div class="text-sm">
+              <p>{{ facultyInfo.designation }}</p>
+              <p>{{ facultyInfo.email }}</p>
+            </div>
           </div>
         </div>
 

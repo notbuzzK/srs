@@ -673,7 +673,7 @@ const uploadCSV = async () => {
                   </p>
                 </div>
                 <div v-if="item.key === 'borrow'" class="flex dark:border-gray-700">
-                  <UInput v-model="q" placeholder="Filter people..." />
+                  <UInput v-model="q" placeholder="Search" />
                 </div>
               </div>
             </template>

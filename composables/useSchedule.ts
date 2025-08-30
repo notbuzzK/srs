@@ -1008,5 +1008,6 @@ export function useSchedule() {
     arpTotal,
     arpThreshold,
     overloadHours,
+    timeToMinutes
   }
 }
