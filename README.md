@@ -1,75 +1,29 @@
-# Nuxt Minimal Starter
+# Faculty Management and Schedule Recommendation System
+An (unfinished) commission by a university that ghosted me. Approximately 60% of the system is complete.
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+# Setup
+**5 User Roles**: System Admin, College Admin, CEEA, Scheduler, Faculty
+**Complex Scheduling System**: Handles multi-level workload constraints, multiple instructors in one schedule]
 
-## Setup
 
-Make sure to install dependencies:
+# Technology Stack
+- Typescript
+- Vue
+- Nuxt3
+- Tailwind
+- Supabase
+- Vercel
 
-```bash
-# npm
-npm install
+# Automated Constraint and Rule Based Scheduling Engine
+Uses a 4-level contsraint system to ensure proper schedules are created and set:
+1. Part Time / Full Time
+2. Semestral / Trimestral / Midyear
+3. 4 different Ranks / Positions
+4. Each rank and position has specific conditions for their schedules that need to be met
 
-# pnpm
-pnpm install
+# Complex Backend Functions
+- A faculty (user) can be under one or two different colleges or academic services, department, with different ranks, and faculty item. 
+- Schedule creation is done by scheduler, must be visible to college dean, and reflected into each faculty account 
+- Schedule creation checks for workload thresholds, duplicates, conflicts, and faculty availability
 
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+# Screenshots
