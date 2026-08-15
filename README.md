@@ -1,10 +1,10 @@
 # Faculty Management and Schedule Recommendation System
-An (unfinished) commission by a university that ghosted me. Approximately 60% of the system is complete.
+A commission by a university. Approximately 60-70% of the system is complete. Due to internal restructuring during development, this project is now paused/archived.
 
 # Setup
-**6 User Roles**: System Admin, College Admin, CEEA, Higher Ups, Scheduler, Faculty
-**Complex Scheduling System**: Handles multi-level workload constraints, multiple instructors in one schedule]
-**
+**Complex Role Based Access Architecture**: 6-tier permission system and dynamic backend workflows for cross-departmental faculty allocation ("borrowing") with Dean approval gates.
+**Algorithmic Scheduling Engine**: Handles multi-level workload constraints, multiple instructors in one schedule to automate clash-free scheduling.
+**Validation Pipelines:** Automated checks for dynamic workload limits, duplicate assignments, and schedule conflicts across complex multi-instructor classes.
 
 # Technology Stack
 - Typescript
